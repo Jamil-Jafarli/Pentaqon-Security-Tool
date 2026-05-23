@@ -7,6 +7,29 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
+<!-- ── LOGIN OVERLAY ── -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="52" height="52" viewBox="0 0 32 32" fill="none">
+        <polygon points="16,2 30,11 25,28 7,28 2,11" fill="none" stroke="#3b82f6" stroke-width="2"/>
+        <polygon points="16,7 26,13 22,24 10,24 6,13" fill="#3b82f630" stroke="#3b82f6" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="login-title">PENTAGON SOC</div>
+    <div class="login-sub">Security Operations Center</div>
+    <div id="loginError" class="login-error hidden"></div>
+    <div class="login-fields">
+      <input id="loginUser" type="text" class="login-input" placeholder="Username"
+             autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()" />
+      <input id="loginPass" type="password" class="login-input" placeholder="Password"
+             autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn-primary login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- LEFT SIDEBAR -->
@@ -37,11 +60,6 @@
         <button class="nav-item active" data-tab="query">
           <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
           <span class="nav-label">NL Query</span>
-        </button>
-        <button class="nav-item" data-tab="alerts">
-          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-          <span class="nav-label">Alert Analyzer</span>
-          <span class="nav-badge">5</span>
         </button>
         <button class="nav-item" data-tab="chat">
           <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
@@ -123,11 +141,14 @@
         <p class="topbar-sub" id="pageSub">Convert human language into SIEM query languages instantly</p>
       </div>
       <div class="topbar-right">
-        <div class="live-chip">
-          <span class="pulse-dot"></span>
-          LIVE
-        </div>
         <div class="clock" id="clock"></div>
+        <div class="topbar-user">
+          <span class="topbar-user-name" id="topbarUsername"></span>
+          <button class="topbar-logout-btn" onclick="doLogout()">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+            Logout
+          </button>
+        </div>
       </div>
     </header>
 
@@ -233,7 +254,8 @@
             <div class="spl-result-head">
               <div class="spl-head-left">
                 <span class="qblock-dot query-dot"></span>
-                <span class="spl-label">SIEM Query</span>
+                <span class="spl-label" id="siemQueryLabel">SPL Query</span>
+                <span class="siem-no-conn hidden" id="siemNoConn">not connected — query only</span>
                 <div class="mitre-row" id="mitreTags"></div>
               </div>
               <div class="spl-head-right">
@@ -286,58 +308,6 @@
                 <thead id="tableHead"></thead>
                 <tbody id="tableBody"></tbody>
               </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── ALERTS ── -->
-      <section class="tab" id="tab-alerts">
-        <div id="alertList" class="alert-list"></div>
-        <div id="alertAnalysis" class="hidden">
-          <div class="back-row">
-            <button class="btn-ghost" onclick="closeAnalysis()">← Back</button>
-            <h2 class="back-title" id="analysisTitle"></h2>
-          </div>
-          <div id="alertLoading" class="loading-block hidden">
-            <div class="spinner"></div><span>Analyzing incident...</span>
-          </div>
-          <div id="analysisContent" class="hidden">
-            <div class="agrid">
-              <div class="acard span2">
-                <div class="acard-title">Incident Summary</div>
-                <p id="anSummary" class="acard-text"></p>
-                <div class="meta-row">
-                  <div class="meta-item"><span class="meta-lbl">MITRE Technique</span><span class="meta-val" id="anMitre"></span></div>
-                  <div class="meta-item"><span class="meta-lbl">Tactic</span><span class="meta-val" id="anTactic"></span></div>
-                  <div class="meta-item"><span class="meta-lbl">FP Probability</span><span class="meta-val" id="anFpProb"></span></div>
-                </div>
-              </div>
-              <div class="acard">
-                <div class="acard-title">Attack Chain</div>
-                <ol class="step-list" id="anChain"></ol>
-              </div>
-              <div class="acard">
-                <div class="acard-title">Indicators of Compromise</div>
-                <div id="anIocs" class="ioc-list"></div>
-              </div>
-              <div class="acard">
-                <div class="acard-title">Immediate Actions</div>
-                <ul class="step-list" id="anActions"></ul>
-              </div>
-              <div class="acard">
-                <div class="acard-title">Remediation Steps</div>
-                <ol class="step-list" id="anRemediation"></ol>
-              </div>
-              <div class="acard span2">
-                <div class="acard-title">Forensic Queries</div>
-                <div class="ftabs">
-                  <button class="ftab active" onclick="showForensic('splunk',this)">SPL</button>
-                  <button class="ftab" onclick="showForensic('kql',this)">KQL</button>
-                </div>
-                <pre class="fcode" id="forensicSplunk"></pre>
-                <pre class="fcode hidden" id="forensicKql"></pre>
-              </div>
             </div>
           </div>
         </div>
@@ -797,8 +767,8 @@
             </div>
           </div>
 
-          <!-- API KEYS -->
-          <div class="cfg-section">
+          <!-- API KEYS (admin only) -->
+          <div class="cfg-section" id="apiKeysSection" style="display:none">
             <div class="cfg-section-title">API Keys</div>
             <div class="cfg-sub" style="margin-bottom:12px">Keys are stored on the server and used for enrichment queries. Leave blank to use free sources only.</div>
 
@@ -865,6 +835,29 @@
             </button>
           </div>
 
+          <!-- ADMIN (admin only) -->
+          <div class="cfg-section" id="adminSection" style="display:none">
+            <div class="cfg-section-title">User Management</div>
+
+            <!-- User list -->
+            <div class="cfg-card" style="padding:0;overflow:hidden">
+              <div id="adminUserList" class="admin-user-list"></div>
+              <div class="admin-add-row">
+                <input id="newUserName" type="text" class="cfg-input" placeholder="Username" autocomplete="off" style="flex:1;min-width:0" />
+                <input id="newUserPass" type="password" class="cfg-input" placeholder="Password" autocomplete="new-password" style="flex:1;min-width:0" />
+                <select id="newUserRole" class="cfg-input" style="width:110px;flex-shrink:0">
+                  <option value="analyst">Analyst</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button class="btn-primary" style="flex-shrink:0" onclick="adminAddUser()">
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/></svg>
+                  Add User
+                </button>
+              </div>
+            </div>
+
+          </div>
+
           <!-- FREE SOURCES -->
           <div class="cfg-section">
             <div class="cfg-section-title">Free Sources (no key required)</div>
@@ -892,6 +885,21 @@
 <!-- Insider Threat modal -->
 <div id="insBackdrop" class="ins-backdrop hidden" onclick="closeInsiderDrawer()"></div>
 <div id="insDrawer"   class="ins-drawer hidden"></div>
+
+<!-- Password change modal -->
+<div id="pwChangeModal" class="admin-pw-modal hidden">
+  <div class="admin-pw-box">
+    <div class="admin-pw-box-title">Change Password</div>
+    <div class="admin-pw-box-sub" id="pwChangeTarget"></div>
+    <input type="password" id="pwChangeNew" class="cfg-input" placeholder="New password…" autocomplete="new-password" />
+    <input type="password" id="pwChangeConfirm" class="cfg-input" placeholder="Confirm password…" autocomplete="new-password"
+           onkeydown="if(event.key==='Enter')adminConfirmPwChange()" />
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="adminConfirmPwChange()">Save</button>
+      <button class="btn-ghost" style="flex:1" onclick="document.getElementById('pwChangeModal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast hidden"></div>
 <script src="/static/app.js"></script>

@@ -1,7 +1,7 @@
-let selectedFpAlert = null;
-let selectedCorrelateIds = new Set();
 let chatHistory = [];
+let currentUser = null;
 let lastResults = { columns: [], rows: [] };
+let currentSiem = localStorage.getItem('soc_siem') || 'splunk';
 
 // ── TIME PICKER STATE ──
 let timeState = { earliest: '0', latest: 'now', label: 'All time' };
@@ -105,7 +105,6 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.getElementById('tab-' + tab).classList.add('active');
     const titles = {
       query:     ['Natural Language Query', 'Translate natural language into SIEM queries and run them live'],
-      alerts:    ['Alert Analyzer', 'AI-powered incident analysis and remediation guidance'],
       chat:      ['AI SOC Chat', 'Conversational threat hunting and security assistance'],
       deploy:    ['Deploy Agent', 'Build a Windows triage agent pre-configured for this server'],
       epdash:    ['Endpoint Reports', 'Live dashboard of triage reports received from deployed agents'],
@@ -166,6 +165,7 @@ async function runQuery() {
   try {
     const res = await post('/api/nl-to-splunk', {
       query: q,
+      siem:  currentSiem,
       earliest_time: timeState.earliest,
       latest_time:   timeState.latest
     });
@@ -189,6 +189,10 @@ async function runQuery() {
 
 // Direct SPL run (edited textarea)
 async function runSpl() {
+  if (currentSiem !== 'splunk') {
+    toast(`${SIEM_LABELS[currentSiem] || currentSiem} is not connected — query only mode`);
+    return;
+  }
   const spl = document.getElementById('splunkCode').value.trim();
   if (!spl) return;
   const btn = document.getElementById('runSplBtn');
@@ -199,6 +203,7 @@ async function runSpl() {
   try {
     const res = await post('/api/run-spl', {
       spl,
+      siem: currentSiem,
       earliest_time: timeState.earliest,
       latest_time:   timeState.latest
     });
@@ -226,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runSpl(); }
   });
   renderHistory();
+  checkAuth();
 });
 
 function copySpl() {
@@ -241,7 +247,18 @@ function renderQueryResults(res) {
   lastSpl = res.spl || '';
   lastResults = { columns: res.columns || [], rows: res.rows || [] };
 
-  // SPL block
+  // Update query language label + run button visibility
+  if (res.query_lang) {
+    const lbl = document.getElementById('siemQueryLabel');
+    if (lbl) lbl.textContent = res.query_lang + ' Query';
+  }
+  const canRun = res.can_run !== false && currentSiem === 'splunk';
+  const runBtn = document.getElementById('runSplBtn');
+  if (runBtn) runBtn.style.display = canRun ? '' : 'none';
+  const noConn = document.getElementById('siemNoConn');
+  if (noConn) noConn.classList.toggle('hidden', canRun);
+
+  // Query block
   const splEl = document.getElementById('splunkCode');
   splEl.value = res.spl || '';
   autoGrow(splEl);
@@ -435,167 +452,6 @@ function copyEl(id) {
   navigator.clipboard.writeText(text).then(() => toast('Kopyalandı'));
 }
 
-// ── ALERTS ──
-async function loadAlerts() {
-  try {
-    const res = await get('/api/alerts');
-    renderAlerts(res.data);
-    renderCorrelateList(res.data);
-    renderFpAlerts(res.data);
-  } catch (e) { console.error(e); }
-}
-
-function renderAlerts(alerts) {
-  document.getElementById('alertList').innerHTML = alerts.map(a => `
-    <div class="alert-item" onclick='analyzeAlert(${JSON.stringify(a)})'>
-      <span class="sev-badge ${a.severity}">${a.severity}</span>
-      <div class="alert-info">
-        <div class="alert-title">${a.title}</div>
-        <div class="alert-meta">${a.source} · ${a.timestamp} · ${a.src_ip} · ${a.mitre}</div>
-      </div>
-      <span class="alert-events">${a.events} events</span>
-      <span class="alert-arrow">›</span>
-    </div>`).join('');
-}
-
-function analyzeAlert(alert) {
-  hide('alertList');
-  show('alertAnalysis');
-  hide('analysisContent');
-  show('alertLoading');
-  document.getElementById('analysisTitle').textContent = alert.title;
-
-  post('/api/analyze-alert', { alert }).then(res => {
-    const d = res.data;
-    document.getElementById('anSummary').textContent = d.summary || '';
-    document.getElementById('anMitre').textContent   = d.mitre_technique || '';
-    document.getElementById('anTactic').textContent  = d.mitre_tactic || '';
-    const fp = d.false_positive_probability || '';
-    const fpEl = document.getElementById('anFpProb');
-    fpEl.textContent = fp;
-    fpEl.style.color = fp === 'low' ? 'var(--green)' : fp === 'medium' ? 'var(--yellow)' : 'var(--red)';
-
-    document.getElementById('anChain').innerHTML =
-      (d.attack_chain || []).map(s => `<li>${s}</li>`).join('');
-
-    document.getElementById('anIocs').innerHTML =
-      (d.iocs || []).map(i => `
-        <div class="ioc-item">
-          <span class="ioc-type">${i.type}</span>
-          <span class="ioc-value">${i.value}</span>
-          <span class="ioc-threat ${i.threat_level}">${i.threat_level}</span>
-        </div>`).join('');
-
-    document.getElementById('anActions').innerHTML =
-      (d.immediate_actions || []).map(a => `<li>${a}</li>`).join('');
-    document.getElementById('anRemediation').innerHTML =
-      (d.remediation_steps || []).map(s => `<li>${s}</li>`).join('');
-    document.getElementById('forensicSplunk').textContent = d.forensic_queries?.splunk || '';
-    document.getElementById('forensicKql').textContent    = d.forensic_queries?.kql || '';
-
-    hide('alertLoading');
-    show('analysisContent');
-  }).catch(e => { hide('alertLoading'); toast('Xəta: ' + e.message); });
-}
-
-function closeAnalysis() {
-  show('alertList'); hide('alertAnalysis');
-}
-
-function showForensic(type, btn) {
-  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  type === 'splunk' ? (show('forensicSplunk'), hide('forensicKql'))
-                    : (hide('forensicSplunk'), show('forensicKql'));
-}
-
-// ── CORRELATE ──
-function renderCorrelateList(alerts) {
-  document.getElementById('correlateList').innerHTML = alerts.map(a => `
-    <div class="corr-item" id="corr-${a.id}" onclick="toggleCorr('${a.id}',this)">
-      <div class="corr-check">✓</div>
-      <span class="sev-badge ${a.severity}">${a.severity}</span>
-      <span style="flex:1;font-size:13px;color:var(--text-1)">${a.title}</span>
-      <span style="font-size:12px;color:var(--text-3)">${a.src_ip}</span>
-    </div>`).join('');
-}
-
-function toggleCorr(id, el) {
-  selectedCorrelateIds.has(id) ? selectedCorrelateIds.delete(id) : selectedCorrelateIds.add(id);
-  el.classList.toggle('selected');
-}
-
-async function runCorrelation() {
-  if (selectedCorrelateIds.size < 2) { toast('Ən azı 2 alert seçin'); return; }
-  show('correlateLoading'); hide('correlateResults');
-  try {
-    const res = await post('/api/correlate', { alert_ids: [...selectedCorrelateIds] });
-    const d = res.data;
-    document.getElementById('campaignName').textContent = d.campaign_name || '';
-    const confEl = document.getElementById('corrConf');
-    confEl.textContent = (d.confidence || 'medium') + ' confidence';
-    confEl.className = 'conf-pill ' + (d.confidence || 'medium');
-    document.getElementById('corrNarrative').textContent  = d.attack_narrative || '';
-    document.getElementById('corrActor').textContent      = d.threat_actor_profile || '';
-    document.getElementById('corrKillChain').textContent  = d.kill_chain_stage || '';
-    document.getElementById('corrBlast').textContent      = d.blast_radius || '';
-    document.getElementById('corrTimeline').innerHTML = (d.timeline || []).map(t => `
-      <div class="tl-item">
-        <div class="tl-time">${t.time}</div>
-        <div class="tl-event"><div class="tl-event-name">${t.event}</div><div class="tl-sig">${t.significance}</div></div>
-      </div>`).join('');
-    document.getElementById('corrPivots').innerHTML  = (d.pivot_points || []).map(p => `<li>${p}</li>`).join('');
-    document.getElementById('corrActions').innerHTML = (d.priority_actions || []).map(a => `<li>${a}</li>`).join('');
-    document.getElementById('corrGaps').innerHTML    = (d.detection_gaps || []).map(g => `<li>${g}</li>`).join('');
-    hide('correlateLoading'); show('correlateResults');
-  } catch (e) { hide('correlateLoading'); toast('Xəta: ' + e.message); }
-}
-
-// ── FP REDUCER ──
-function renderFpAlerts(alerts) {
-  document.getElementById('fpAlertList').innerHTML = alerts.map(a => `
-    <div class="fp-alert-item" id="fp-${a.id}" onclick='selectFpAlert(this,${JSON.stringify(a)})'>
-      <span class="sev-badge ${a.severity}">${a.severity}</span>
-      <span>${a.title}</span>
-    </div>`).join('');
-}
-
-function selectFpAlert(el, alert) {
-  document.querySelectorAll('.fp-alert-item').forEach(e => e.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedFpAlert = alert;
-}
-
-async function runFpAnalysis() {
-  if (!selectedFpAlert) { toast('Alert seçin'); return; }
-  const context = document.getElementById('fpContext').value;
-  show('fpLoading'); hide('fpResults');
-  try {
-    const res = await post('/api/reduce-fp', { alert: selectedFpAlert, context });
-    const d = res.data;
-    const verdict = d.verdict || 'true_positive';
-    const icons   = { true_positive:'🚨', false_positive:'✅', benign_true_positive:'⚠️' };
-    const labels  = { true_positive:'TRUE POSITIVE', false_positive:'FALSE POSITIVE', benign_true_positive:'BENIGN TRUE POSITIVE' };
-    document.getElementById('fpBanner').className = 'fp-banner ' + verdict;
-    document.getElementById('fpIcon').textContent    = icons[verdict] || '🚨';
-    document.getElementById('fpVerdict').textContent = labels[verdict] || verdict;
-    document.getElementById('fpConf').textContent    = `Confidence: ${d.confidence_score || 0}%`;
-    document.getElementById('fpReasoning').textContent  = d.reasoning || '';
-    document.getElementById('fpWhitelist').textContent  = d.whitelist_recommendation || '';
-    const riskEl = document.getElementById('fpRisk');
-    const risk = d.risk_if_whitelisted || 'medium';
-    riskEl.textContent  = risk;
-    riskEl.style.color  = risk==='low' ? 'var(--green)' : risk==='high' ? 'var(--red)' : 'var(--yellow)';
-    document.getElementById('fpTuning').innerHTML = (d.tuning_suggestions || []).map(t => `
-      <div class="tuning-item">
-        <div class="tuning-field">${t.field} ${t.operator} "${t.value}"</div>
-        <div class="tuning-reason">${t.reason}</div>
-      </div>`).join('');
-    document.getElementById('fpPatterns').innerHTML = (d.similar_fp_patterns || []).map(p => `<li>${p}</li>`).join('');
-    hide('fpLoading'); show('fpResults');
-  } catch (e) { hide('fpLoading'); toast('Xəta: ' + e.message); }
-}
-
 // ── CHAT ──
 function quickChat(msg) {
   document.getElementById('chatInput').value = msg;
@@ -672,6 +528,135 @@ function escapeHtml(s) {
   return String(s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── AUTH ──────────────────────────────────────────────────────
+async function checkAuth() {
+  try {
+    const r = await get('/api/me');
+    _setUser(r);
+    document.getElementById('loginOverlay').classList.add('hidden');
+  } catch(_) {
+    document.getElementById('loginOverlay').classList.remove('hidden');
+  }
+}
+
+function _setUser(u) {
+  currentUser = u;
+  document.getElementById('topbarUsername').textContent = u.username;
+  applyUserRole(u.role);
+}
+
+function applyUserRole(role) {
+  const isAdmin = role === 'admin';
+  document.getElementById('apiKeysSection').style.display = isAdmin ? '' : 'none';
+  document.getElementById('adminSection').style.display   = isAdmin ? '' : 'none';
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl    = document.getElementById('loginError');
+  const btn      = document.getElementById('loginBtn');
+  if (!username || !password) {
+    errEl.textContent = 'Username and password required';
+    errEl.classList.remove('hidden'); return;
+  }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const r = await post('/api/login', { username, password });
+    _setUser(r);
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('loginPass').value = '';
+    errEl.classList.add('hidden');
+  } catch(_) {
+    errEl.textContent = 'Invalid username or password';
+    errEl.classList.remove('hidden');
+  }
+  btn.disabled = false; btn.textContent = 'Sign In';
+}
+
+async function doLogout() {
+  await post('/api/logout', {}).catch(() => {});
+  currentUser = null;
+  document.getElementById('topbarUsername').textContent = '';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+}
+
+// ── USER MANAGEMENT ──────────────────────────────────────────
+async function loadAdminUsers() {
+  try {
+    const d = await get('/api/admin/users');
+    renderAdminUserList(d.data || []);
+  } catch(_) {}
+}
+
+function renderAdminUserList(users) {
+  const el = document.getElementById('adminUserList');
+  if (!el) return;
+  if (!users.length) { el.innerHTML = '<div class="ti-empty" style="padding:16px">No users</div>'; return; }
+  el.innerHTML = users.map(u => `
+    <div class="admin-user-row">
+      <div class="admin-user-avatar">${escapeHtml(u.username[0].toUpperCase())}</div>
+      <span class="admin-user-name">${escapeHtml(u.username)}</span>
+      <span class="admin-user-role ${u.role}">${u.role}</span>
+      <button class="admin-user-pw" onclick="adminOpenPwModal('${escapeHtml(u.username)}')">
+        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style="margin-right:3px"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>Password
+      </button>
+      ${u.username !== 'admin'
+        ? `<button class="admin-user-del" onclick="adminDeleteUser('${escapeHtml(u.username)}')">Delete</button>`
+        : '<span style="width:52px"></span>'}
+    </div>`).join('');
+}
+
+async function adminAddUser() {
+  const username = document.getElementById('newUserName').value.trim();
+  const password = document.getElementById('newUserPass').value;
+  const role     = document.getElementById('newUserRole').value;
+  if (!username || !password) { showToast('Username and password required'); return; }
+  try {
+    await post('/api/admin/users', { username, password, role });
+    showToast('User created: ' + username);
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserPass').value = '';
+    loadAdminUsers();
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function adminDeleteUser(username) {
+  if (!confirm(`Delete user "${username}"?`)) return;
+  try {
+    const r = await fetch('/api/admin/users/' + encodeURIComponent(username), { method: 'DELETE' });
+    if (!r.ok) throw new Error(await r.text());
+    showToast('User deleted');
+    loadAdminUsers();
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+let _pwChangeTarget = null;
+function adminOpenPwModal(username) {
+  _pwChangeTarget = username;
+  document.getElementById('pwChangeTarget').textContent = 'User: ' + username;
+  document.getElementById('pwChangeNew').value     = '';
+  document.getElementById('pwChangeConfirm').value = '';
+  document.getElementById('pwChangeModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pwChangeNew').focus(), 50);
+}
+
+async function adminConfirmPwChange() {
+  const pw1 = document.getElementById('pwChangeNew').value;
+  const pw2 = document.getElementById('pwChangeConfirm').value;
+  if (!pw1 || pw1 !== pw2) { showToast('Passwords do not match'); return; }
+  if (pw1.length < 4) { showToast('Min 4 characters'); return; }
+  try {
+    await post('/api/admin/users/' + encodeURIComponent(_pwChangeTarget) + '/password', { password: pw1 });
+    showToast('Password changed for ' + _pwChangeTarget);
+    document.getElementById('pwChangeModal').classList.add('hidden');
+    _pwChangeTarget = null;
+  } catch(e) { showToast('Error: ' + e.message); }
 }
 
 function toast(msg) {
@@ -1529,15 +1514,43 @@ const SIEM_LABELS = {
   wazuh:    'Wazuh',
   arcsight: 'ArcSight',
 };
-let currentSiem = localStorage.getItem('soc_siem') || 'splunk';
+const SIEM_LANGS = {
+  splunk:   'SPL',
+  elastic:  'KQL',
+  sentinel: 'KQL',
+  qradar:   'AQL',
+  wazuh:    'WQL',
+  arcsight: 'ArcSight',
+};
 function setSiemPlatform(val) {
   currentSiem = val;
   localStorage.setItem('soc_siem', val);
+  _applySiemUI();
 }
-(function initSiem() {
+
+function _applySiemUI() {
+  const lang   = SIEM_LANGS[currentSiem]  || 'Query';
+  const canRun = currentSiem === 'splunk';
+
+  const lbl = document.getElementById('siemQueryLabel');
+  if (lbl) lbl.textContent = lang + ' Query';
+
+  const noConn = document.getElementById('siemNoConn');
+  if (noConn) noConn.classList.toggle('hidden', canRun);
+
+  const runBtn = document.getElementById('runSplBtn');
+  if (runBtn) runBtn.style.display = canRun ? '' : 'none';
+
   const sel = document.getElementById('siemSelector');
   if (sel) sel.value = currentSiem;
-})();
+
+  const editor = document.getElementById('splunkCode');
+  if (editor) editor.placeholder = canRun
+    ? 'SPL query — edit and run directly against Splunk...'
+    : `${lang} query — generated for ${SIEM_LABELS[currentSiem] || currentSiem}`;
+}
+
+(function initSiem() { _applySiemUI(); })();
 
 // ══════════════════════════════════════════════════════════════
 //  THEME
@@ -1563,6 +1576,7 @@ function toggleTheme() {
 //  SETTINGS
 // ══════════════════════════════════════════════════════════════
 async function loadSettings() {
+  if (currentUser) applyUserRole(currentUser.role);
   try {
     const d = await get('/api/settings');
     const s = d.data || {};
@@ -1572,6 +1586,7 @@ async function loadSettings() {
       if (el) el.placeholder = s[k] ? 'Configured (' + s[k] + ')' : el.placeholder;
     }
   } catch(_) {}
+  if (currentUser?.role === 'admin') loadAdminUsers();
 }
 
 async function saveSettings() {
@@ -1760,7 +1775,7 @@ window.renderDomainResults = function(r) {
   _origRenderDomainResults(r);
   const grid = document.querySelector('#tiDomainResults .ti-grid');
   if (!grid) return;
-  if (r.crt) grid.appendChild(createHtmlEl(renderCrtshCard(r.crt, true)));
+  if (r.crt) { const el = createHtmlEl(renderCrtshCard(r.crt, true)); if (el) grid.appendChild(el); }
   if (r.virustotal && r.virustotal.error !== 'no_key') {
     const card = document.createElement('div');
     card.className = 'ti-card';
@@ -1915,7 +1930,7 @@ function renderInsiderGrid() {
         return `<span class="ins-flag-chip ins-sev-${sev}">${c.icon} ${c.label}</span>`;
       }).join('');
       const extraFlags = flags.length > 4 ? `<span class="ins-flag-more">+${flags.length - 4} more</span>` : '';
-      return `<div class="ins-card ins-risk-${analyzed.risk.toLowerCase()}" data-user="${escapeHtml(u.username)}" onclick="openInsiderDrawer(${JSON.stringify(u.username)})">
+      return `<div class="ins-card ins-risk-${analyzed.risk.toLowerCase()}" data-user="${escapeHtml(u.username)}" onclick="openInsiderDrawer(this.dataset.user)">
         <div class="ins-card-top">
           <span class="ins-card-user" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
           <span class="ins-badge ins-badge-${analyzed.risk.toLowerCase()}">${analyzed.risk}</span>
@@ -1932,7 +1947,7 @@ function renderInsiderGrid() {
     }
 
     // Unanalyzed
-    return `<div class="ins-card ins-card-pending" data-user="${escapeHtml(u.username)}" onclick="insiderAnalyzeAndOpen(${JSON.stringify(u.username)})">
+    return `<div class="ins-card ins-card-pending" data-user="${escapeHtml(u.username)}" onclick="insiderAnalyzeAndOpen(this.dataset.user)">
       <div class="ins-card-top">
         <span class="ins-card-user" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
         <span class="ins-badge ins-badge-pending">—</span>
@@ -2015,11 +2030,11 @@ function openInsiderDrawer(username) {
     </div>
 
     <div class="ins-drawer-footer">
-      <button class="btn-ghost" onclick="insiderDeleteUser(${JSON.stringify(username)})">
+      <button class="btn-ghost" onclick="insiderDeleteUser(_insiderDrawerUser)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
         Remove
       </button>
-      <button class="btn-primary" onclick="insiderReanalyze(${JSON.stringify(username)})">
+      <button class="btn-primary" onclick="insiderReanalyze(_insiderDrawerUser)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
         Re-analyze
       </button>

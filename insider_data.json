@@ -1,6 +1,112 @@
 {
   "Vugar": {
     "username": "Vugar",
+    "machine": "DESKTOP-9G74UU8",
+    "risk": "LOW",
+    "score": 8,
+    "findings": {
+      "off_hours": {
+        "count": 2,
+        "label": "Off-hours logins",
+        "sev": "LOW"
+      },
+      "failed_logins": {
+        "count": 11,
+        "label": "Failed login attempts",
+        "sev": "MEDIUM"
+      },
+      "file_access": {
+        "count": 0,
+        "label": "Unique files accessed",
+        "sev": "NONE"
+      },
+      "usb_activity": {
+        "count": 0,
+        "label": "USB / removable media events",
+        "sev": "NONE"
+      },
+      "archive": {
+        "count": 0,
+        "label": "Archive / compression cmds",
+        "sev": "NONE"
+      },
+      "privilege_use": {
+        "count": 0,
+        "label": "Privileged logon events",
+        "sev": "NONE"
+      },
+      "exfil_tools": {
+        "count": 0,
+        "label": "Exfil / data transfer tools",
+        "sev": "NONE"
+      },
+      "abnormal_proc": {
+        "count": 0,
+        "label": "Suspicious process execution",
+        "sev": "NONE"
+      }
+    },
+    "analyzed_at": "2026-05-23T07:44:05Z",
+    "days": 30,
+    "ai": {
+      "summary": "{\"summary\":\"In the past 30 days, the user Vugar had two off\u2011hours login events and eleven failed login attempts. While the overall risk remains low (score 8/100), the pattern of failed attempts warrants attention.\",\"key_concerns\":[\"Multiple failed login attempts indicating possible password guessing\",\"Off\u2011hours logins outside normal work schedule\",\"Potential account compromise risk despite low overall score\"],\"likely_cause\":\"Likely a combination of legitimate off\u2011hours access and automated password\u2011spraying attempts.\",\"recommended_actions\":[\"Review Vugar\u2019s recent activity for anomalous behavior\",\"Enforce multi\u2011factor authentication for the account\",\"Lock the account temporarily and require"
+    }
+  },
+  "localadm": {
+    "username": "localadm",
+    "machine": "DESKTOP-9G74UU8",
+    "risk": "LOW",
+    "score": 8,
+    "findings": {
+      "off_hours": {
+        "count": 4,
+        "label": "Off-hours logins",
+        "sev": "MEDIUM"
+      },
+      "failed_logins": {
+        "count": 0,
+        "label": "Failed login attempts",
+        "sev": "NONE"
+      },
+      "file_access": {
+        "count": 0,
+        "label": "Unique files accessed",
+        "sev": "NONE"
+      },
+      "usb_activity": {
+        "count": 0,
+        "label": "USB / removable media events",
+        "sev": "NONE"
+      },
+      "archive": {
+        "count": 0,
+        "label": "Archive / compression cmds",
+        "sev": "NONE"
+      },
+      "privilege_use": {
+        "count": 4,
+        "label": "Privileged logon events",
+        "sev": "LOW"
+      },
+      "exfil_tools": {
+        "count": 0,
+        "label": "Exfil / data transfer tools",
+        "sev": "NONE"
+      },
+      "abnormal_proc": {
+        "count": 0,
+        "label": "Suspicious process execution",
+        "sev": "NONE"
+      }
+    },
+    "analyzed_at": "2026-05-23T07:02:30Z",
+    "days": 7,
+    "ai": {
+      "error": "Connection error."
+    }
+  },
+  "Maga": {
+    "username": "Maga",
     "machine": "",
     "risk": "CLEAN",
     "score": 0,
@@ -46,79 +152,18 @@
         "sev": "NONE"
       }
     },
-    "analyzed_at": "2026-05-23T06:29:51Z",
-    "days": 7,
+    "analyzed_at": "2026-05-23T07:29:49Z",
+    "days": 30,
     "ai": {
-      "summary": "No notable insider threat activity observed for Vugar in the last 7 days; behavior aligns with baseline expectations.",
+      "summary": "No notable insider threat activity was observed in the past 30 days. The environment remains clean and stable.",
       "key_concerns": [],
-      "likely_cause": "Benign \u2013 no anomalous actions detected.",
+      "likely_cause": "Benign \u2013 no suspicious behavior detected.",
       "recommended_actions": [
-        "Maintain current monitoring",
-        "Periodically review baseline activity",
-        "Ensure logging remains enabled"
+        "Maintain current monitoring thresholds",
+        "Review access logs for any anomalies on a weekly basis",
+        "Reinforce insider threat awareness training for staff"
       ],
       "confidence": "high"
     }
-  },
-  "Maga": {
-    "username": "Maga",
-    "risk": "CLEAN",
-    "score": 0,
-    "findings": {
-      "off_hours": {
-        "count": 0,
-        "label": "Off-hours logins",
-        "sev": "NONE"
-      },
-      "failed_logins": {
-        "count": 0,
-        "label": "Failed login attempts",
-        "sev": "NONE"
-      },
-      "file_access": {
-        "count": 0,
-        "label": "Unique files accessed",
-        "sev": "NONE"
-      },
-      "usb_activity": {
-        "count": 0,
-        "label": "USB / removable media events",
-        "sev": "NONE"
-      },
-      "archive": {
-        "count": 0,
-        "label": "Archive / compression cmds",
-        "sev": "NONE"
-      },
-      "privilege_use": {
-        "count": 0,
-        "label": "Privileged logon events",
-        "sev": "NONE"
-      },
-      "exfil_tools": {
-        "count": 0,
-        "label": "Exfil / data transfer tools",
-        "sev": "NONE"
-      },
-      "abnormal_proc": {
-        "count": 0,
-        "label": "Suspicious process execution",
-        "sev": "NONE"
-      }
-    },
-    "analyzed_at": "2026-05-23T06:16:11Z",
-    "days": 30,
-    "ai": {
-      "summary": "No notable insider threat indicators were observed in the past 30 days. The environment remains within normal operational parameters.",
-      "key_concerns": [],
-      "likely_cause": "Benign \u2013 no suspicious activity detected.",
-      "recommended_actions": [
-        "Maintain current monitoring cadence",
-        "Review access logs for any anomalies on a weekly basis",
-        "Reinforce insider threat awareness training"
-      ],
-      "confidence": "high"
-    },
-    "machine": ""
   }
 }

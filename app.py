@@ -9,21 +9,23 @@ import ipaddress
 import base64
 import tempfile
 import subprocess
+import hashlib
 import requests
 import urllib3
 import dns.resolver
 import whois as _whois_lib
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, session
 from flask_cors import CORS
 from groq import Groq
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__, static_folder="static")
-CORS(app)
+CORS(app, supports_credentials=True)
+app.secret_key = os.environ.get("SECRET_KEY", "pentagon-soc-s3cr3t-2024")
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+client = Groq(api_key=os.environ.get("GROQ_API_KEY", "GROQ_KEY_REMOVED"))
 MODEL = "openai/gpt-oss-120b"
 
 SPLUNK_HOST = os.environ.get("SPLUNK_HOST", "https://localhost:8089")
@@ -31,6 +33,24 @@ SPLUNK_USER = os.environ.get("SPLUNK_USER", "admin")
 SPLUNK_PASS = os.environ.get("SPLUNK_PASS", "Salam123Salam123!")
 
 SPLUNK_INDEXES = ["main", "wineventlog", "_audit", "_internal"]
+
+SIEM_QUERY_LANG = {
+    'splunk':   'SPL',
+    'elastic':  'KQL',
+    'sentinel': 'KQL',
+    'qradar':   'AQL',
+    'wazuh':    'WQL',
+    'arcsight': 'ArcSight',
+}
+
+SIEM_PROMPT = {
+    'splunk':   'Splunk SPL (Search Processing Language). Use index=wineventlog, EventCode=, Account_Name=, etc. No time modifiers.',
+    'elastic':  'Elasticsearch KQL (Kibana Query Language). Field:value syntax, e.g. event.code:4625 AND winlog.event_data.SubStatus:*.',
+    'sentinel': 'Microsoft Sentinel KQL (Kusto Query Language). Table-based, e.g. SecurityEvent | where EventID == 4625 | ...',
+    'qradar':   'IBM QRadar AQL (Ariel Query Language). SELECT fields FROM events WHERE condition LAST N MINUTES format.',
+    'wazuh':    'Wazuh query using WQL (Wazuh Query Language) or Lucene syntax. Field:value format for agent/alert searches.',
+    'arcsight': 'ArcSight ESM query expression using ArcSight filter/CEF syntax with deviceEventClassId, sourceUserId, etc.',
+}
 SPLUNK_SOURCETYPES = [
     "WinEventLog:Security", "WinEventLog:System",
     "WinEventLog:Application", "WinEventLog:Setup"
@@ -51,9 +71,36 @@ Rules:
 - Keep queries practical and executable
 - Respond ONLY with valid JSON, no markdown"""
 
-SOC_CHAT_SYSTEM = """You are an expert SOC analyst and threat hunter.
-Help with: threat hunting, incident response, MITRE ATT&CK, Splunk SPL, detection rules, IOC analysis.
-Use markdown formatting. Be concise and actionable."""
+SOC_CHAT_SYSTEM = """You are an expert SOC (Security Operations Center) analyst and threat hunter integrated into the Pentagon SOC Platform.
+
+STRICT SCOPE RESTRICTION:
+You ONLY discuss cybersecurity topics. This is a hard rule with no exceptions.
+
+Allowed topics:
+- Threat hunting, incident response, digital forensics
+- MITRE ATT&CK techniques, tactics, and procedures
+- SIEM queries (Splunk SPL, KQL, AQL, WQL)
+- Malware analysis, IOC analysis, threat intelligence
+- Detection rule writing (Sigma, Yara, Suricata)
+- Network security, endpoint security, log analysis
+- CVEs, vulnerabilities, exploits (defensive context)
+- Security architecture, hardening, compliance
+- Phishing, social engineering, insider threat analysis
+- Penetration testing concepts (authorized/defensive use)
+
+NOT allowed — strictly refuse any message about:
+- General coding, programming help unrelated to security
+- Weather, news, sports, entertainment, cooking, travel
+- Math, science, history, geography (unless directly tied to a security concept)
+- Personal advice, jokes, creative writing, translations
+- Any topic that is not directly cybersecurity-related
+
+When a user asks about a non-cybersecurity topic, respond ONLY with:
+"⛔ This assistant is restricted to cybersecurity topics only. Please ask about threat hunting, incident response, SIEM queries, MITRE ATT&CK, malware analysis, or other security-related subjects."
+
+Do not elaborate, apologize extensively, or engage with the off-topic content in any way. Just refuse and redirect.
+
+For cybersecurity topics: use markdown formatting, be concise and actionable."""
 
 DEMO_ALERTS = [
     {
@@ -246,8 +293,13 @@ def index():
 
 @app.route("/api/run-spl", methods=["POST"])
 def run_spl_direct():
-    """Execute SPL directly (no AI generation)."""
+    """Execute query directly (no AI generation). Only Splunk is supported."""
     data = request.json
+    siem = data.get("siem", "splunk").lower()
+    if siem != "splunk":
+        lang = SIEM_QUERY_LANG.get(siem, siem.upper())
+        return jsonify({"success": False,
+                        "error": f"{lang} query cannot be executed — {siem.title()} is not connected to this platform."}), 400
     spl = data.get("spl", "").strip()
     if not spl:
         return jsonify({"success": False, "error": "Empty SPL"}), 400
@@ -280,72 +332,80 @@ def run_spl_direct():
 
 @app.route("/api/nl-to-splunk", methods=["POST"])
 def nl_to_splunk():
-    data = request.json
+    data     = request.json
     nl_query = data.get("query", "").strip()
     if not nl_query:
         return jsonify({"success": False, "error": "Empty query"}), 400
     earliest = data.get("earliest_time", "0")
     latest   = data.get("latest_time",   "now")
+    siem     = data.get("siem", "splunk").lower()
+    if siem not in SIEM_QUERY_LANG:
+        siem = "splunk"
 
-    wants_table = any(w in nl_query.lower()
-                      for w in ["table", "cədvəl", "count", "stats", "summarize",
-                                "top ", "rare ", "chart", "timechart"])
+    lang = SIEM_QUERY_LANG[siem]
 
-    schema = """{
-  "spl": "complete SPL query without time modifiers",
-  "explanation": "one sentence what this query does",
-  "mitre_techniques": ["T1234"],
-  "notes": "optional caveats or tuning tips"
-}"""
-
-    hint = (
-        "User wants a TABLE/aggregation — use | table or | stats at the end."
-        if wants_table else
-        "User wants RAW events — do NOT add | table or | stats. Just filter conditions."
-    )
+    if siem == "splunk":
+        wants_table = any(w in nl_query.lower()
+                          for w in ["table", "cədvəl", "count", "stats", "summarize",
+                                    "top ", "rare ", "chart", "timechart"])
+        hint = (
+            "User wants a TABLE/aggregation — use | table or | stats at the end."
+            if wants_table else
+            "User wants RAW events — do NOT add | table or | stats. Just filter conditions."
+        )
+        schema = ('{"spl": "complete SPL query without time modifiers",'
+                  '"explanation": "one sentence what this query does",'
+                  '"mitre_techniques": ["T1234 if relevant, else empty list"],'
+                  '"notes": "optional caveats or tuning tips"}')
+        prompt = f'Generate a {SIEM_PROMPT[siem]} query for: "{nl_query}"\nHint: {hint}'
+    else:
+        schema = (f'{{"query": "complete {lang} query",'
+                  f'"explanation": "one sentence what this query does",'
+                  f'"mitre_techniques": ["T1234 if relevant, else empty list"],'
+                  f'"notes": "field name hints or usage tips for {lang}"}}')
+        prompt = f'Generate a {SIEM_PROMPT[siem]} query for: "{nl_query}"'
 
     try:
-        ai_result = groq_json(
-            f"Generate a Splunk SPL query for: \"{nl_query}\"\nHint: {hint}",
-            schema
-        )
+        ai_result = groq_json(prompt, schema)
     except Exception as e:
         return jsonify({"success": False, "error": f"AI error: {e}"}), 500
 
-    spl = ai_result.get("spl", "")
+    query = ai_result.get("spl") or ai_result.get("query", "")
 
-    try:
-        exec_result = splunk_run(spl, earliest=earliest, latest=latest)
-    except Exception as e:
-        # Return the query even if execution fails
-        return jsonify({
-            "success": True,
-            "spl": spl,
-            "explanation": ai_result.get("explanation", ""),
-            "mitre_techniques": ai_result.get("mitre_techniques", []),
-            "notes": ai_result.get("notes", ""),
-            "exec_error": str(e),
-            "columns": [],
-            "rows": [],
-            "total": 0,
-            "duration_ms": 0,
-            "truncated": False
-        })
-
-    return jsonify({
+    base = {
         "success": True,
-        "spl": exec_result["spl"],
-        "is_raw": exec_result["is_raw"],
+        "spl": query,
+        "query_lang": lang,
+        "siem": siem,
+        "can_run": siem == "splunk",
         "explanation": ai_result.get("explanation", ""),
         "mitre_techniques": ai_result.get("mitre_techniques", []),
         "notes": ai_result.get("notes", ""),
-        "exec_error": None,
-        "columns": exec_result["columns"],
-        "rows": exec_result["rows"],
-        "total": exec_result["total"],
-        "duration_ms": exec_result["duration_ms"],
-        "truncated": exec_result["truncated"]
-    })
+    }
+
+    if siem != "splunk":
+        base.update({"exec_error": None, "is_raw": False,
+                     "columns": [], "rows": [], "total": 0,
+                     "duration_ms": 0, "truncated": False})
+        return jsonify(base)
+
+    try:
+        exec_result = splunk_run(query, earliest=earliest, latest=latest)
+        base.update({
+            "spl": exec_result["spl"],
+            "is_raw": exec_result["is_raw"],
+            "exec_error": None,
+            "columns": exec_result["columns"],
+            "rows":    exec_result["rows"],
+            "total":   exec_result["total"],
+            "duration_ms": exec_result["duration_ms"],
+            "truncated":   exec_result["truncated"],
+        })
+    except Exception as e:
+        base.update({"exec_error": str(e), "is_raw": False,
+                     "columns": [], "rows": [], "total": 0,
+                     "duration_ms": 0, "truncated": False})
+    return jsonify(base)
 
 
 @app.route("/api/alerts", methods=["GET"])
@@ -716,6 +776,118 @@ def build_agent():
 # ══════════════════════════════════════════════════════════
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
+USERS_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+
+# ── AUTH HELPERS ──────────────────────────────────────────────
+def _hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def _load_users():
+    try:
+        with open(USERS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {"admin": {"hash": _hash_pw("admin"), "role": "admin"}}
+
+def _save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=2)
+
+def _require_login():
+    if not session.get("username"):
+        return jsonify({"error": "unauthorized"}), 401
+    return None
+
+def _require_admin():
+    if not session.get("username"):
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("role") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    return None
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.json or {}
+    username = data.get("username", "").strip().lower()
+    password = data.get("password", "")
+    users = _load_users()
+    user = users.get(username)
+    if not user or user.get("hash") != _hash_pw(password):
+        return jsonify({"error": "Invalid username or password"}), 401
+    session.permanent = True
+    session["username"] = username
+    session["role"] = user.get("role", "user")
+    return jsonify({"username": username, "role": session["role"]})
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+@app.route("/api/me", methods=["GET"])
+def api_me():
+    if not session.get("username"):
+        return jsonify({"error": "not_logged_in"}), 401
+    return jsonify({"username": session["username"], "role": session["role"]})
+
+@app.route("/api/admin/users", methods=["GET"])
+def admin_list_users():
+    err = _require_admin()
+    if err: return err
+    users = _load_users()
+    return jsonify({"data": [
+        {"username": u, "role": v.get("role", "analyst")}
+        for u, v in users.items()
+    ]})
+
+@app.route("/api/admin/users", methods=["POST"])
+def admin_create_user():
+    err = _require_admin()
+    if err: return err
+    data     = request.json or {}
+    username = re.sub(r'[^a-z0-9_\-]', '', data.get("username", "").strip().lower())
+    password = data.get("password", "").strip()
+    role     = data.get("role", "analyst")
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+    if len(password) < 4:
+        return jsonify({"error": "Password must be at least 4 chars"}), 400
+    if role not in ("admin", "analyst"):
+        role = "analyst"
+    users = _load_users()
+    if username in users:
+        return jsonify({"error": "User already exists"}), 409
+    users[username] = {"hash": _hash_pw(password), "role": role}
+    _save_users(users)
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/users/<username>", methods=["DELETE"])
+def admin_delete_user(username):
+    err = _require_admin()
+    if err: return err
+    if username == "admin":
+        return jsonify({"error": "Cannot delete the admin account"}), 400
+    users = _load_users()
+    if username not in users:
+        return jsonify({"error": "User not found"}), 404
+    users.pop(username)
+    _save_users(users)
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/users/<username>/password", methods=["POST"])
+def admin_set_password(username):
+    err = _require_admin()
+    if err: return err
+    data   = request.json or {}
+    new_pw = data.get("password", "").strip()
+    if len(new_pw) < 4:
+        return jsonify({"error": "Password must be at least 4 characters"}), 400
+    users = _load_users()
+    if username not in users:
+        return jsonify({"error": "User not found"}), 404
+    users[username]["hash"] = _hash_pw(new_pw)
+    _save_users(users)
+    return jsonify({"ok": True})
 
 def _load_settings():
     try:
@@ -731,16 +903,23 @@ def _save_settings(s):
 @app.route("/api/settings", methods=["GET"])
 def settings_get():
     s = _load_settings()
+    is_admin = session.get("role") == "admin"
     masked = {}
     for k, v in s.items():
-        if k.endswith("_key") and v:
-            masked[k] = v[:4] + "●●●●●●●●" + v[-2:] if len(v) > 6 else "●●●●●●"
+        if k == "users":
+            continue  # never expose user credentials
+        if k.endswith("_key"):
+            if not is_admin:
+                continue  # hide API keys from non-admin
+            masked[k] = (v[:4] + "●●●●●●●●" + v[-2:] if len(v) > 6 else "●●●●●●") if v else ""
         else:
             masked[k] = v
     return jsonify({"data": masked})
 
 @app.route("/api/settings", methods=["POST"])
 def settings_save():
+    err = _require_admin()
+    if err: return err
     incoming = request.json or {}
     s = _load_settings()
     for field in ("virustotal_key", "abuseipdb_key", "shodan_key"):
