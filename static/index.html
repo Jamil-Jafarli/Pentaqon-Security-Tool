@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pentagon SOC</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="/static/logo.png" alt="Pentagon" class="logo-img" id="logoImg" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+      <div class="logo-fallback" id="logoFallback">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <polygon points="16,2 30,11 25,28 7,28 2,11" fill="none" stroke="#3b82f6" stroke-width="2"/>
+          <polygon points="16,7 26,13 22,24 10,24 6,13" fill="#3b82f630" stroke="#3b82f6" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-name">PENTAGON</span>
+        <span class="logo-sub">SOC Platform</span>
+      </div>
+    </div>
+
+    <div class="sidebar-nav-scroll">
+
+      <!-- 1 · SIEM -->
+      <button class="sidebar-sec-hdr" onclick="toggleSec('siem')" id="hdr-siem">
+        <span class="sec-num">1</span>
+        <span class="sec-title">SIEM</span>
+        <svg class="sec-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <nav class="nav sec-nav" id="sec-siem">
+        <button class="nav-item active" data-tab="query">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">NL Query</span>
+        </button>
+        <button class="nav-item" data-tab="alerts">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">Alert Analyzer</span>
+          <span class="nav-badge">5</span>
+        </button>
+        <button class="nav-item" data-tab="chat">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">AI Chat</span>
+        </button>
+      </nav>
+
+      <!-- 2 · ENDPOINT -->
+      <button class="sidebar-sec-hdr" onclick="toggleSec('endpoint')" id="hdr-endpoint">
+        <span class="sec-num">2</span>
+        <span class="sec-title">ENDPOINT</span>
+        <svg class="sec-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <nav class="nav sec-nav" id="sec-endpoint">
+        <button class="nav-item" data-tab="epdash">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+          <span class="nav-label">Reports</span>
+          <span class="nav-badge" id="epBadge" style="display:none">0</span>
+        </button>
+        <button class="nav-item" data-tab="deploy">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">Deploy Agent</span>
+        </button>
+      </nav>
+
+      <!-- 3 · THREAT INTEL -->
+      <button class="sidebar-sec-hdr" onclick="toggleSec('intel')" id="hdr-intel">
+        <span class="sec-num">3</span>
+        <span class="sec-title">THREAT INTEL</span>
+        <svg class="sec-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <nav class="nav sec-nav" id="sec-intel">
+        <button class="nav-item" data-tab="domain">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">Domain Search</span>
+        </button>
+        <button class="nav-item" data-tab="mail">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+          <span class="nav-label">Mail Search</span>
+        </button>
+        <button class="nav-item" data-tab="ioc">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">IOC Search</span>
+        </button>
+      </nav>
+
+      <!-- 4 · INSIDER THREAT -->
+      <button class="sidebar-sec-hdr" onclick="toggleSec('insider')" id="hdr-insider">
+        <span class="sec-num">4</span>
+        <span class="sec-title">INSIDER THREAT</span>
+        <svg class="sec-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <nav class="nav sec-nav" id="sec-insider">
+        <button class="nav-item" data-tab="insider">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+          <span class="nav-label">User Behavior</span>
+          <span class="nav-badge" id="insiderBadge" style="display:none">0</span>
+        </button>
+      </nav>
+
+    </div><!-- end sidebar-nav-scroll -->
+
+    <!-- Static settings button -->
+    <div class="sidebar-settings-bar">
+      <button class="nav-item settings-fixed-btn" data-tab="settings">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+        <span class="nav-label">Settings</span>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-wrap">
+    <!-- Top header bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="topbar-title" id="pageTitle">Natural Language Query</h1>
+        <p class="topbar-sub" id="pageSub">Convert human language into SIEM query languages instantly</p>
+      </div>
+      <div class="topbar-right">
+        <div class="live-chip">
+          <span class="pulse-dot"></span>
+          LIVE
+        </div>
+        <div class="clock" id="clock"></div>
+      </div>
+    </header>
+
+    <!-- TAB CONTENT -->
+    <main class="content">
+
+      <!-- ── NL QUERY ── -->
+      <section class="tab active" id="tab-query">
+
+        <!-- Search input card -->
+        <div class="query-card-outer">
+          <div class="qo-top-row">
+            <div class="qo-label">Natural Language → SIEM Query</div>
+            <!-- SIEM SELECTOR -->
+            <div class="siem-sel-wrap">
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" class="siem-sel-icon"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+              <select id="siemSelector" class="siem-select" onchange="setSiemPlatform(this.value)">
+                <option value="splunk" selected>Splunk</option>
+                <option value="elastic">Elastic / ELK</option>
+                <option value="sentinel">Microsoft Sentinel</option>
+                <option value="qradar">IBM QRadar</option>
+                <option value="wazuh">Wazuh</option>
+                <option value="arcsight">ArcSight</option>
+              </select>
+            </div>
+            <!-- TIME PICKER -->
+            <div class="tp-wrap" id="tpWrap">
+              <button class="tp-btn" id="tpBtn" onclick="toggleTimePicker()">
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                <span id="tpLabel">All time</span>
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+              <!-- Dropdown -->
+              <div class="tp-dropdown hidden" id="tpDropdown">
+                <div class="tp-section-label">Presets</div>
+                <div class="tp-presets">
+                  <button class="tp-preset" onclick="setTime('0','now','All time')">All time</button>
+                  <button class="tp-preset" onclick="setTime('-15m','now','Last 15 min')">Last 15 min</button>
+                  <button class="tp-preset" onclick="setTime('-30m','now','Last 30 min')">Last 30 min</button>
+                  <button class="tp-preset" onclick="setTime('-60m','now','Last 1 hour')">Last 1 hour</button>
+                  <button class="tp-preset" onclick="setTime('-4h','now','Last 4 hours')">Last 4 hours</button>
+                  <button class="tp-preset" onclick="setTime('-24h','now','Last 24 hours')">Last 24 hours</button>
+                  <button class="tp-preset" onclick="setTime('-7d','now','Last 7 days')">Last 7 days</button>
+                  <button class="tp-preset" onclick="setTime('-30d','now','Last 30 days')">Last 30 days</button>
+                  <button class="tp-preset" onclick="setTime('-90d','now','Last 90 days')">Last 90 days</button>
+                  <button class="tp-preset" onclick="setTime('@d','now','Today')">Today</button>
+                  <button class="tp-preset" onclick="setTime('@w','now','This week')">This week</button>
+                  <button class="tp-preset" onclick="setTime('@mon','now','This month')">This month</button>
+                </div>
+                <div class="tp-divider"></div>
+                <div class="tp-section-label">Custom range</div>
+                <div class="tp-custom">
+                  <div class="tp-custom-row">
+                    <label class="tp-custom-lbl">From</label>
+                    <input type="datetime-local" id="tpFrom" class="tp-datetime" />
+                  </div>
+                  <div class="tp-custom-row">
+                    <label class="tp-custom-lbl">To</label>
+                    <input type="datetime-local" id="tpTo" class="tp-datetime" />
+                  </div>
+                  <button class="btn-primary" style="width:100%;margin-top:8px" onclick="applyCustomTime()">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="qo-examples">
+            <span class="qo-try">Try:</span>
+            <button class="chip" onclick="setQuery('Show all Windows login events')">All login events</button>
+            <button class="chip" onclick="setQuery('Show failed login attempts')">Failed logins</button>
+            <button class="chip" onclick="setQuery('Show all system events by host')">Events by host</button>
+            <button class="chip" onclick="setQuery('Top 10 event codes as table')">Top event codes</button>
+            <button class="chip" onclick="setQuery('Show application errors')">App errors</button>
+          </div>
+          <div class="qo-input-row">
+            <input id="nlInput" class="qo-input" type="text"
+              placeholder="Describe what you want to search in plain English..." />
+            <button class="btn-primary" id="runQueryBtn" onclick="runQuery()">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+              Run Query
+            </button>
+          </div>
+
+          <!-- History strip -->
+          <div class="hist-strip" id="histStrip" style="display:none">
+            <span class="hist-label">
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+              History
+            </span>
+            <div class="hist-items" id="histItems"></div>
+            <button class="hist-clear" onclick="clearHistory()">Clear</button>
+          </div>
+        </div>
+
+        <div id="queryLoading" class="loading-block hidden">
+          <div class="spinner"></div>
+          <span id="queryLoadingText">AI sorğu yazır...</span>
+        </div>
+
+        <div id="queryResults" class="hidden">
+          <!-- Editable SPL block -->
+          <div class="spl-result-block">
+            <div class="spl-result-head">
+              <div class="spl-head-left">
+                <span class="qblock-dot query-dot"></span>
+                <span class="spl-label">SIEM Query</span>
+                <div class="mitre-row" id="mitreTags"></div>
+              </div>
+              <div class="spl-head-right">
+                <button class="copy-btn" onclick="copySpl()">Copy</button>
+              </div>
+            </div>
+            <!-- Editable textarea -->
+            <textarea id="splunkCode" class="spl-editor" spellcheck="false"
+              placeholder="SIEM query..." rows="3"
+              oninput="autoGrow(this)"></textarea>
+            <div class="spl-editor-footer">
+              <div class="spl-explain" id="queryExplanation"></div>
+              <button class="btn-run-spl" id="runSplBtn" onclick="runSpl()">
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                Run Query
+              </button>
+            </div>
+            <div id="queryNotes" class="spl-notes hidden"></div>
+          </div>
+
+          <!-- Results block -->
+          <div class="results-block" id="resultsBlock">
+            <div class="results-head">
+              <div class="results-head-left">
+                <span class="results-title">Results</span>
+                <span class="mode-badge" id="resultsModeTag"></span>
+                <span class="results-meta" id="resultsMeta"></span>
+              </div>
+              <div class="results-head-right">
+                <span id="truncWarning" class="trunc-warn hidden">Showing first 200</span>
+                <button class="copy-btn" onclick="exportCSV()">CSV</button>
+              </div>
+            </div>
+
+            <div id="execError" class="exec-error hidden">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              <span id="execErrorText"></span>
+            </div>
+
+            <div id="emptyState" class="empty-state hidden">
+              <svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" style="opacity:0.15"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              <p>No results found</p>
+              <p class="empty-sub">Try broadening your search or adjusting the time range</p>
+            </div>
+
+            <div class="raw-wrap hidden" id="rawWrap"></div>
+
+            <div class="table-wrap hidden" id="tableWrap">
+              <table class="results-table" id="resultsTable">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ALERTS ── -->
+      <section class="tab" id="tab-alerts">
+        <div id="alertList" class="alert-list"></div>
+        <div id="alertAnalysis" class="hidden">
+          <div class="back-row">
+            <button class="btn-ghost" onclick="closeAnalysis()">← Back</button>
+            <h2 class="back-title" id="analysisTitle"></h2>
+          </div>
+          <div id="alertLoading" class="loading-block hidden">
+            <div class="spinner"></div><span>Analyzing incident...</span>
+          </div>
+          <div id="analysisContent" class="hidden">
+            <div class="agrid">
+              <div class="acard span2">
+                <div class="acard-title">Incident Summary</div>
+                <p id="anSummary" class="acard-text"></p>
+                <div class="meta-row">
+                  <div class="meta-item"><span class="meta-lbl">MITRE Technique</span><span class="meta-val" id="anMitre"></span></div>
+                  <div class="meta-item"><span class="meta-lbl">Tactic</span><span class="meta-val" id="anTactic"></span></div>
+                  <div class="meta-item"><span class="meta-lbl">FP Probability</span><span class="meta-val" id="anFpProb"></span></div>
+                </div>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Attack Chain</div>
+                <ol class="step-list" id="anChain"></ol>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Indicators of Compromise</div>
+                <div id="anIocs" class="ioc-list"></div>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Immediate Actions</div>
+                <ul class="step-list" id="anActions"></ul>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Remediation Steps</div>
+                <ol class="step-list" id="anRemediation"></ol>
+              </div>
+              <div class="acard span2">
+                <div class="acard-title">Forensic Queries</div>
+                <div class="ftabs">
+                  <button class="ftab active" onclick="showForensic('splunk',this)">SPL</button>
+                  <button class="ftab" onclick="showForensic('kql',this)">KQL</button>
+                </div>
+                <pre class="fcode" id="forensicSplunk"></pre>
+                <pre class="fcode hidden" id="forensicKql"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CHAT ── -->
+      <section class="tab" id="tab-chat">
+        <div class="chat-wrap">
+          <div class="chat-msgs" id="chatMessages">
+            <div class="msg assistant">
+              <div class="msg-av">AI</div>
+              <div class="msg-bub">
+                <p>Hello! I'm your AI-powered SOC analyst. I can help you with:</p>
+                <ul>
+                  <li>Threat hunting and investigation queries</li>
+                  <li>Incident analysis and triage</li>
+                  <li>MITRE ATT&CK technique explanations</li>
+                  <li>Remediation guidance</li>
+                  <li>Detection rule writing</li>
+                </ul>
+                <p>What security question can I help you with?</p>
+              </div>
+            </div>
+          </div>
+          <div class="chat-bottom">
+            <div class="chat-suggestions">
+              <button class="chip" onclick="quickChat('What are the top 5 indicators of ransomware activity?')">Ransomware IOCs</button>
+              <button class="chip" onclick="quickChat('How do I hunt for Cobalt Strike beacons in my environment?')">Cobalt Strike hunting</button>
+              <button class="chip" onclick="quickChat('Explain T1055 Process Injection and detection methods')">T1055 Process Injection</button>
+              <button class="chip" onclick="quickChat('What SIEM queries detect credential dumping?')">Credential dumping</button>
+            </div>
+            <div class="chat-input-row">
+              <input id="chatInput" class="chat-in" type="text" placeholder="Ask me anything about security..." onkeydown="if(event.key==='Enter') sendChat()" />
+              <button class="btn-primary" onclick="sendChat()">Send</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ENDPOINT REPORTS DASHBOARD ───────────────────── -->
+      <section class="tab" id="tab-epdash">
+
+        <!-- Summary bar -->
+        <div class="ep-summary-bar">
+          <div class="ep-stat">
+            <div class="ep-stat-val" id="epStatTotal">0</div>
+            <div class="ep-stat-lbl">Total Reports</div>
+          </div>
+          <div class="ep-stat">
+            <div class="ep-stat-val" id="epStatEndpoints">0</div>
+            <div class="ep-stat-lbl">Unique Hosts</div>
+          </div>
+          <div class="ep-stat ep-stat-warn">
+            <div class="ep-stat-val" id="epStatHigh">0</div>
+            <div class="ep-stat-lbl">HIGH Risk</div>
+          </div>
+          <div class="ep-stat ep-stat-med">
+            <div class="ep-stat-val" id="epStatMed">0</div>
+            <div class="ep-stat-lbl">MEDIUM Risk</div>
+          </div>
+          <div class="ep-stat ep-stat-ok">
+            <div class="ep-stat-val" id="epStatClean">0</div>
+            <div class="ep-stat-lbl">Clean</div>
+          </div>
+          <div style="margin-left:auto">
+            <button class="ep-refresh-btn" onclick="loadEpDash()">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Cards grid -->
+        <div id="epCardGrid" class="ep-card-grid">
+          <div class="ep-empty" id="epEmpty">
+            <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><rect x="6" y="6" width="36" height="36" rx="4" stroke="#334155" stroke-width="2"/><path d="M16 24h16M16 30h10" stroke="#334155" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="17" r="3" stroke="#334155" stroke-width="2"/></svg>
+            <p>No endpoint reports yet.<br>Deploy an agent and run it on a Windows machine.</p>
+          </div>
+        </div>
+
+        <!-- Detail drawer -->
+        <div id="epDrawer" class="ep-drawer hidden">
+          <div class="ep-drawer-header">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="ep-drawer-host" id="epDrawerHost">–</div>
+                <span class="ep-risk-badge UNKNOWN" id="epDrawerRisk">–</span>
+              </div>
+              <div class="ep-drawer-meta" id="epDrawerMeta">–</div>
+            </div>
+            <button class="ep-drawer-close" onclick="closeEpDrawer()">✕</button>
+          </div>
+
+          <!-- Per-section finding chips -->
+          <div id="epDrawerFindings" class="ep-drawer-findings hidden">
+            <!-- populated by JS -->
+          </div>
+
+          <pre id="epDrawerBody" class="ep-drawer-body"></pre>
+        </div>
+
+      </section>
+
+      <!-- ── DEPLOY AGENT ──────────────────────────────────── -->
+      <section class="tab" id="tab-deploy">
+        <div class="panel-header">
+          <h2 class="panel-title">Deploy Endpoint Agent</h2>
+          <p class="panel-desc">Build a Windows triage agent pre-configured to report back to this server. The binary embeds your server address in a custom PE section and collects registry persistence, open ports, System32 anomalies, services, and scheduled tasks.</p>
+        </div>
+
+        <div class="deploy-grid">
+          <!-- Config card -->
+          <div class="deploy-card">
+            <div class="deploy-card-title">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+              Build Configuration
+            </div>
+
+            <div class="deploy-row">
+              <label class="deploy-label">Server IP / Hostname</label>
+              <input id="agentHost" class="deploy-input" type="text" placeholder="auto-detected..." />
+            </div>
+            <div class="deploy-row">
+              <label class="deploy-label">Server Port</label>
+              <input id="agentPort" class="deploy-input" type="number" value="5000" min="1" max="65535" />
+            </div>
+
+            <div class="deploy-meta" id="deployMeta">
+              <span class="deploy-meta-row"><span class="dmk">Compiler</span><span class="dmv" id="dmCompiler">checking...</span></span>
+              <span class="deploy-meta-row"><span class="dmk">Source</span><span class="dmv" id="dmSrc">endpoint_scan.cpp</span></span>
+              <span class="deploy-meta-row"><span class="dmk">Target</span><span class="dmv">Windows x86-64 PE</span></span>
+              <span class="deploy-meta-row"><span class="dmk">Transport</span><span class="dmv">HTTP POST /api/postdata</span></span>
+            </div>
+
+            <button class="btn-build" id="btnBuild" onclick="buildAgent()">
+              <svg id="buildSpinIcon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style="display:none"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+              <svg id="buildDlIcon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <span id="btnBuildLabel">Build &amp; Download agent.exe</span>
+            </button>
+
+            <div id="buildError" class="build-error hidden"></div>
+          </div>
+
+          <!-- Info card -->
+          <div class="deploy-card">
+            <div class="deploy-card-title">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+              What the agent collects
+            </div>
+            <ul class="deploy-list">
+              <li><span class="dl-badge reg">REG</span> Autorun keys (Run, RunOnce, WOW6432Node), Winlogon Userinit/Shell tampering, IFEO debugger hijacks, SilentProcessExit monitors</li>
+              <li><span class="dl-badge net">NET</span> All TCP + UDP sockets with PID → process name resolution</li>
+              <li><span class="dl-badge fs">FS</span> System32 files: unknown extension, created &lt;7 days, tiny executables (&lt;4 KB)</li>
+              <li><span class="dl-badge svc">SVC</span> Services running outside <code>Windows\</code>, <code>Program Files\</code>, or using LOLBins</li>
+              <li><span class="dl-badge task">TASK</span> Non-Microsoft scheduled tasks, tasks using PowerShell / cmd / mshta / temp paths</li>
+            </ul>
+
+            <div class="deploy-card-title" style="margin-top:20px">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              Run on the endpoint
+            </div>
+            <div class="deploy-cmd">
+              <code>.\soc_agent.exe</code>
+              <button class="copy-cmd-btn" onclick="navigator.clipboard.writeText('.\\\\soc_agent.exe')">Copy</button>
+            </div>
+            <p class="deploy-note">Run as Administrator for full service + scheduled task enumeration.</p>
+
+            <div class="deploy-note" style="margin-top:16px;padding:10px;background:var(--bg-3);border:1px solid var(--border-1);border-radius:6px;font-size:12px;color:var(--text-2)">
+              Reports received from deployed agents are visible in the
+              <a href="#" onclick="document.querySelector('[data-tab=epdash]').click();return false"
+                 style="color:var(--blue);text-decoration:none">Endpoint Reports</a> dashboard.
+            </div>
+          </div>
+        </div>
+      </section><!-- end tab-deploy -->
+
+      <!-- ══════════════════════════════════════════════════
+           THREAT INTEL — DOMAIN SEARCH
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-domain">
+        <div class="ti-search-bar">
+          <div class="ti-input-wrap">
+            <svg class="ti-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clip-rule="evenodd"/></svg>
+            <input id="tiDomainInput" class="ti-input" type="text"
+              placeholder="Enter domain — e.g. example.com"
+              onkeydown="if(event.key==='Enter')tiDomainSearch()" />
+          </div>
+          <button class="btn-primary" id="tiDomainBtn" onclick="tiDomainSearch()">Analyze</button>
+        </div>
+        <div class="ti-examples">
+          <span class="qo-try">Try:</span>
+          <button class="chip" onclick="tiDomainSetAndRun('google.com')">google.com</button>
+          <button class="chip" onclick="tiDomainSetAndRun('protonmail.com')">protonmail.com</button>
+          <button class="chip" onclick="tiDomainSetAndRun('paypal.com')">paypal.com</button>
+        </div>
+
+        <div id="tiDomainLoading" class="loading-block hidden">
+          <div class="spinner"></div><span>Querying DNS, WHOIS, SSL, AI analysis…</span>
+        </div>
+
+        <div id="tiDomainResults" class="hidden">
+          <!-- AI banner -->
+          <div id="tiDomainAI" class="ti-ai-banner">
+            <div class="ti-ai-left">
+              <span id="tiDomainRisk" class="ti-verdict">–</span>
+              <div class="ti-ai-text">
+                <div id="tiDomainAISummary" class="ti-ai-summary"></div>
+                <div id="tiDomainAIConcerns" class="ti-ai-notes"></div>
+              </div>
+            </div>
+            <div id="tiDomainAIActions" class="ti-ai-actions"></div>
+          </div>
+
+          <!-- grid -->
+          <div class="ti-grid">
+            <!-- DNS Records -->
+            <div class="ti-card ti-card-wide">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+                DNS Records
+              </div>
+              <div id="tiDomainDNSBody" class="ti-card-body"></div>
+            </div>
+
+            <!-- Email Security -->
+            <div class="ti-card">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+                Email Security
+              </div>
+              <div id="tiDomainEmailBody" class="ti-card-body"></div>
+            </div>
+
+            <!-- SSL -->
+            <div class="ti-card">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                SSL Certificate
+              </div>
+              <div id="tiDomainSSLBody" class="ti-card-body"></div>
+            </div>
+
+            <!-- WHOIS -->
+            <div class="ti-card">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                WHOIS
+              </div>
+              <div id="tiDomainWHOISBody" class="ti-card-body"></div>
+            </div>
+          </div>
+        </div>
+      </section><!-- end tab-domain -->
+
+      <!-- ══════════════════════════════════════════════════
+           THREAT INTEL — MAIL SEARCH
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-mail">
+        <div class="ti-search-bar">
+          <div class="ti-input-wrap">
+            <svg class="ti-input-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+            <input id="tiMailInput" class="ti-input" type="text"
+              placeholder="Enter email address — e.g. user@example.com"
+              onkeydown="if(event.key==='Enter')tiMailSearch()" />
+          </div>
+          <button class="btn-primary" id="tiMailBtn" onclick="tiMailSearch()">Check</button>
+        </div>
+
+        <div id="tiMailLoading" class="loading-block hidden">
+          <div class="spinner"></div><span>Checking MX, SPF, DMARC, AI analysis…</span>
+        </div>
+
+        <div id="tiMailResults" class="hidden">
+          <!-- validity bar -->
+          <div id="tiMailValidBar" class="ti-valid-bar">
+            <div id="tiMailValidIcon" class="ti-valid-icon"></div>
+            <div>
+              <div id="tiMailValidText" class="ti-valid-text"></div>
+              <div id="tiMailValidSub" class="ti-valid-sub"></div>
+            </div>
+            <div id="tiMailBadges" class="ti-valid-badges"></div>
+          </div>
+
+          <!-- AI banner -->
+          <div id="tiMailAI" class="ti-ai-banner">
+            <div class="ti-ai-left">
+              <span id="tiMailRisk" class="ti-verdict">–</span>
+              <div class="ti-ai-text">
+                <div id="tiMailAIVerdict" class="ti-ai-summary"></div>
+                <div id="tiMailAINotes" class="ti-ai-notes"></div>
+              </div>
+            </div>
+            <div class="ti-risk-pair">
+              <div class="ti-risk-row"><span class="ti-risk-lbl">Spoofing risk</span><span id="tiMailSpoofRisk" class="ti-risk-chip">–</span></div>
+              <div class="ti-risk-row"><span class="ti-risk-lbl">Phishing risk</span><span id="tiMailPhishRisk" class="ti-risk-chip">–</span></div>
+            </div>
+          </div>
+
+          <!-- detail cards -->
+          <div class="ti-grid">
+            <div class="ti-card">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+                MX Records
+              </div>
+              <div id="tiMailMXBody" class="ti-card-body"></div>
+            </div>
+            <div class="ti-card">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                Email Authentication
+              </div>
+              <div id="tiMailAuthBody" class="ti-card-body"></div>
+            </div>
+          </div>
+        </div>
+      </section><!-- end tab-mail -->
+
+      <!-- ══════════════════════════════════════════════════
+           THREAT INTEL — IOC SEARCH
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-ioc">
+        <div class="ti-search-bar">
+          <div class="ti-input-wrap">
+            <svg class="ti-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <input id="tiIocInput" class="ti-input" type="text"
+              placeholder="IP, domain, URL, MD5, SHA1, SHA256…"
+              onkeydown="if(event.key==='Enter')tiIocSearch()"
+              oninput="tiIocTypeHint(this.value)" />
+            <span id="tiIocTypeChip" class="ti-type-chip hidden"></span>
+          </div>
+          <button class="btn-primary" id="tiIocBtn" onclick="tiIocSearch()">Search</button>
+        </div>
+        <div class="ti-examples">
+          <span class="qo-try">Try:</span>
+          <button class="chip" onclick="tiIocSetAndRun('1.1.1.1')">1.1.1.1</button>
+          <button class="chip" onclick="tiIocSetAndRun('8.8.8.8')">8.8.8.8</button>
+          <button class="chip" onclick="tiIocSetAndRun('malware.wicar.org')">malware.wicar.org</button>
+        </div>
+
+        <div id="tiIocLoading" class="loading-block hidden">
+          <div class="spinner"></div><span id="tiIocLoadingText">Querying threat intelligence sources…</span>
+        </div>
+
+        <div id="tiIocResults" class="hidden">
+          <!-- verdict banner -->
+          <div id="tiIocVerdictBanner" class="ti-verdict-banner">
+            <div class="ti-verdict-left">
+              <span id="tiIocVerdict" class="ti-verdict-large">–</span>
+              <div>
+                <div id="tiIocConfidence" class="ti-confidence"></div>
+                <div id="tiIocSummary" class="ti-ioc-summary"></div>
+              </div>
+            </div>
+            <div id="tiIocTags" class="ti-ioc-tags"></div>
+          </div>
+
+          <!-- threat context + actions -->
+          <div class="ti-ioc-detail-row">
+            <div class="ti-card ti-card-grow">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                Threat Context
+              </div>
+              <div id="tiIocContext" class="ti-card-body"></div>
+            </div>
+            <div class="ti-card ti-card-grow">
+              <div class="ti-card-head">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+                Recommended Actions
+              </div>
+              <div id="tiIocActions" class="ti-card-body"></div>
+            </div>
+          </div>
+
+          <!-- source cards -->
+          <div id="tiIocSources" class="ti-ioc-sources"></div>
+        </div>
+      </section><!-- end tab-ioc -->
+
+      <!-- ══════════════════════════════════════════════════
+           INSIDER THREAT
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-insider">
+
+        <!-- Controls -->
+        <div class="ins-controls">
+          <div class="ins-input-wrap" style="flex:1">
+            <svg class="ins-input-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+            <input id="insSearch" class="ins-user-input" type="text" placeholder="Search users..." oninput="insiderSearch()" />
+          </div>
+          <select id="insDaysSelect" class="ins-days-select">
+            <option value="7">7 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
+        </div>
+
+        <!-- Loading -->
+        <div id="insLoading" class="loading-block hidden">
+          <div class="spinner"></div>
+          <span id="insLoadingText">Analyzing user behavior...</span>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="ins-stat-bar hidden" id="insStatBar">
+          <div class="ins-stat ins-stat-crit"><span id="insStatCrit">0</span><span class="ins-stat-lbl">CRITICAL</span></div>
+          <div class="ins-stat ins-stat-high"><span id="insStatHigh">0</span><span class="ins-stat-lbl">HIGH</span></div>
+          <div class="ins-stat ins-stat-med"><span id="insStatMed">0</span><span class="ins-stat-lbl">MEDIUM</span></div>
+          <div class="ins-stat ins-stat-low"><span id="insStatLow">0</span><span class="ins-stat-lbl">LOW</span></div>
+          <div class="ins-stat ins-stat-clean"><span id="insStatClean">0</span><span class="ins-stat-lbl">CLEAN</span></div>
+        </div>
+
+        <!-- User grid -->
+        <div id="insGrid" class="ins-grid"></div>
+
+        <!-- Empty state -->
+        <div id="insEmpty" class="ins-empty">
+          <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><circle cx="24" cy="16" r="8" stroke="#334155" stroke-width="2"/><path d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="#334155" stroke-width="2" stroke-linecap="round"/></svg>
+          <p>No analyses yet.</p>
+          <p class="empty-sub">No users found in SIEM logs. Check your connection or adjust the search filter.</p>
+        </div>
+
+      </section><!-- end tab-insider -->
+
+      <!-- ══════════════════════════════════════════════════
+           SETTINGS
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-settings">
+        <div class="cfg-wrap">
+
+          <!-- APPEARANCE -->
+          <div class="cfg-section">
+            <div class="cfg-section-title">Appearance</div>
+            <div class="cfg-card">
+              <div class="cfg-row">
+                <div>
+                  <div class="cfg-label">Theme</div>
+                  <div class="cfg-sub">Choose between Dark, Viper (green), or Light</div>
+                </div>
+                <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+                  <span class="theme-opt" id="themeOptDark">
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+                    Dark
+                  </span>
+                  <span class="theme-opt" id="themeOptViper">
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM10 5a1 1 0 011 1v4a1 1 0 11-2 0V6a1 1 0 011-1zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                    Viper
+                  </span>
+                  <span class="theme-opt" id="themeOptLight">
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+                    Light
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- API KEYS -->
+          <div class="cfg-section">
+            <div class="cfg-section-title">API Keys</div>
+            <div class="cfg-sub" style="margin-bottom:12px">Keys are stored on the server and used for enrichment queries. Leave blank to use free sources only.</div>
+
+            <!-- VirusTotal -->
+            <div class="cfg-card cfg-key-card" id="keycardVT">
+              <div class="cfg-key-head">
+                <div class="cfg-key-dot" style="background:#ef4444"></div>
+                <div>
+                  <div class="cfg-label">VirusTotal</div>
+                  <div class="cfg-sub">IP, domain, URL &amp; file hash reputation</div>
+                </div>
+                <span class="cfg-key-status" id="vtStatus"></span>
+              </div>
+              <div class="cfg-key-row">
+                <input type="password" id="vtKey" class="cfg-input" placeholder="Enter VirusTotal API key…" autocomplete="off" />
+                <button class="cfg-eye" onclick="toggleKeyVis('vtKey',this)" title="Show/hide">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+                </button>
+                <button class="btn-ghost cfg-test-btn" onclick="testKey('virustotal','vtKey','vtStatus')">Test</button>
+              </div>
+            </div>
+
+            <!-- AbuseIPDB -->
+            <div class="cfg-card cfg-key-card" id="keycardABUSE">
+              <div class="cfg-key-head">
+                <div class="cfg-key-dot" style="background:#f97316"></div>
+                <div>
+                  <div class="cfg-label">AbuseIPDB</div>
+                  <div class="cfg-sub">IP abuse score, reports &amp; confidence rating</div>
+                </div>
+                <span class="cfg-key-status" id="abuseStatus"></span>
+              </div>
+              <div class="cfg-key-row">
+                <input type="password" id="abuseKey" class="cfg-input" placeholder="Enter AbuseIPDB API key…" autocomplete="off" />
+                <button class="cfg-eye" onclick="toggleKeyVis('abuseKey',this)" title="Show/hide">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+                </button>
+                <button class="btn-ghost cfg-test-btn" onclick="testKey('abuseipdb','abuseKey','abuseStatus')">Test</button>
+              </div>
+            </div>
+
+            <!-- Shodan -->
+            <div class="cfg-card cfg-key-card" id="keycardSHODAN">
+              <div class="cfg-key-head">
+                <div class="cfg-key-dot" style="background:#ef4444;opacity:.8"></div>
+                <div>
+                  <div class="cfg-label">Shodan</div>
+                  <div class="cfg-sub">Full host scan data, open ports, CVEs &amp; banners</div>
+                </div>
+                <span class="cfg-key-status" id="shodanStatus"></span>
+              </div>
+              <div class="cfg-key-row">
+                <input type="password" id="shodanKey" class="cfg-input" placeholder="Enter Shodan API key…" autocomplete="off" />
+                <button class="cfg-eye" onclick="toggleKeyVis('shodanKey',this)" title="Show/hide">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+                </button>
+                <button class="btn-ghost cfg-test-btn" onclick="testKey('shodan','shodanKey','shodanStatus')">Test</button>
+              </div>
+            </div>
+
+            <button class="btn-primary cfg-save-btn" id="cfgSaveBtn" onclick="saveSettings()">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z"/></svg>
+              Save API Keys
+            </button>
+          </div>
+
+          <!-- FREE SOURCES -->
+          <div class="cfg-section">
+            <div class="cfg-section-title">Free Sources (no key required)</div>
+            <div class="cfg-card">
+              <div class="cfg-free-grid">
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>URLhaus — malware URL &amp; hash lookup</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>Shodan InternetDB — basic IP data</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>crt.sh — certificate transparency logs</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>ip-api.com — geolocation &amp; ASN</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>MX Blacklists — RBL / spam reputation (11 lists)</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>DNS — A, MX, NS, TXT, SOA records</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>WHOIS — registrar, dates, nameservers</span></div>
+                <div class="cfg-free-item"><span class="cfg-free-ok">✓</span><span>SPF / DMARC / DKIM — email auth check</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section><!-- end tab-settings -->
+
+    </main>
+  </div>
+</div>
+
+<!-- Insider Threat modal -->
+<div id="insBackdrop" class="ins-backdrop hidden" onclick="closeInsiderDrawer()"></div>
+<div id="insDrawer"   class="ins-drawer hidden"></div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+<script>
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-GB') + ' UTC';
+  }, 1000);
+</script>
+</body>
+</html>

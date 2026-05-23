@@ -1,0 +1,124 @@
+{
+  "Vugar": {
+    "username": "Vugar",
+    "machine": "",
+    "risk": "CLEAN",
+    "score": 0,
+    "findings": {
+      "off_hours": {
+        "count": 0,
+        "label": "Off-hours logins",
+        "sev": "NONE"
+      },
+      "failed_logins": {
+        "count": 0,
+        "label": "Failed login attempts",
+        "sev": "NONE"
+      },
+      "file_access": {
+        "count": 0,
+        "label": "Unique files accessed",
+        "sev": "NONE"
+      },
+      "usb_activity": {
+        "count": 0,
+        "label": "USB / removable media events",
+        "sev": "NONE"
+      },
+      "archive": {
+        "count": 0,
+        "label": "Archive / compression cmds",
+        "sev": "NONE"
+      },
+      "privilege_use": {
+        "count": 0,
+        "label": "Privileged logon events",
+        "sev": "NONE"
+      },
+      "exfil_tools": {
+        "count": 0,
+        "label": "Exfil / data transfer tools",
+        "sev": "NONE"
+      },
+      "abnormal_proc": {
+        "count": 0,
+        "label": "Suspicious process execution",
+        "sev": "NONE"
+      }
+    },
+    "analyzed_at": "2026-05-23T06:29:51Z",
+    "days": 7,
+    "ai": {
+      "summary": "No notable insider threat activity observed for Vugar in the last 7 days; behavior aligns with baseline expectations.",
+      "key_concerns": [],
+      "likely_cause": "Benign \u2013 no anomalous actions detected.",
+      "recommended_actions": [
+        "Maintain current monitoring",
+        "Periodically review baseline activity",
+        "Ensure logging remains enabled"
+      ],
+      "confidence": "high"
+    }
+  },
+  "Maga": {
+    "username": "Maga",
+    "risk": "CLEAN",
+    "score": 0,
+    "findings": {
+      "off_hours": {
+        "count": 0,
+        "label": "Off-hours logins",
+        "sev": "NONE"
+      },
+      "failed_logins": {
+        "count": 0,
+        "label": "Failed login attempts",
+        "sev": "NONE"
+      },
+      "file_access": {
+        "count": 0,
+        "label": "Unique files accessed",
+        "sev": "NONE"
+      },
+      "usb_activity": {
+        "count": 0,
+        "label": "USB / removable media events",
+        "sev": "NONE"
+      },
+      "archive": {
+        "count": 0,
+        "label": "Archive / compression cmds",
+        "sev": "NONE"
+      },
+      "privilege_use": {
+        "count": 0,
+        "label": "Privileged logon events",
+        "sev": "NONE"
+      },
+      "exfil_tools": {
+        "count": 0,
+        "label": "Exfil / data transfer tools",
+        "sev": "NONE"
+      },
+      "abnormal_proc": {
+        "count": 0,
+        "label": "Suspicious process execution",
+        "sev": "NONE"
+      }
+    },
+    "analyzed_at": "2026-05-23T06:16:11Z",
+    "days": 30,
+    "ai": {
+      "summary": "No notable insider threat indicators were observed in the past 30 days. The environment remains within normal operational parameters.",
+      "key_concerns": [],
+      "likely_cause": "Benign \u2013 no suspicious activity detected.",
+      "recommended_actions": [
+        "Maintain current monitoring cadence",
+        "Review access logs for any anomalies on a weekly basis",
+        "Reinforce insider threat awareness training"
+      ],
+      "confidence": "high"
+    },
+    "machine": ""
+  }
+}
