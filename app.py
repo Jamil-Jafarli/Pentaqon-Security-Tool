@@ -1,5 +1,15 @@
 import os
 import re
+
+# Load .env if present
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
 import json
 import time
 import shutil
@@ -25,7 +35,7 @@ app = Flask(__name__, static_folder="static")
 CORS(app, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "pentagon-soc-s3cr3t-2024")
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY", "GROQ_KEY_REMOVED"))
+client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 MODEL = "openai/gpt-oss-120b"
 
 SPLUNK_HOST = os.environ.get("SPLUNK_HOST", "https://localhost:8089")
