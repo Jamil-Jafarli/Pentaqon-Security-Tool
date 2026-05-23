@@ -112,6 +112,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
       mail:      ['Mail Security Analysis', 'Validate email authenticity, MX, SPF, DMARC and spoofing risk'],
       ioc:       ['IOC Search', 'Search global threat intelligence — IP, domain, URL, hash'],
       insider:   ['Insider Threat Detection', 'Analyze employee behavior for signs of insider threat based on SIEM data'],
+      dashboard: ['SOC Dashboard', 'CVE intelligence feed, security metrics and geographic threat map'],
       settings:  ['Settings', 'API keys, appearance and platform configuration'],
     };
     document.getElementById('pageTitle').textContent = titles[tab]?.[0] ?? tab;
@@ -120,8 +121,9 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     if (tab === 'deploy')   initDeployTab();
     if (tab === 'epdash')   startEpPoll();
     else                    stopEpPoll();
-    if (tab === 'settings') loadSettings();
-    if (tab === 'insider')  loadInsider();
+    if (tab === 'settings')  loadSettings();
+    if (tab === 'insider')   loadInsider();
+    if (tab === 'dashboard') loadDashboard();
   });
 });
 
@@ -569,6 +571,7 @@ async function doLogin() {
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('loginPass').value = '';
     errEl.classList.add('hidden');
+    _reloadActiveTab();
   } catch(_) {
     errEl.textContent = 'Invalid username or password';
     errEl.classList.remove('hidden');
@@ -584,6 +587,14 @@ async function doLogout() {
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').classList.add('hidden');
   document.getElementById('loginOverlay').classList.remove('hidden');
+}
+
+function _reloadActiveTab() {
+  const active = document.querySelector('.nav-item.active');
+  const tab = active?.dataset?.tab;
+  if (tab === 'insider')   loadInsider();
+  if (tab === 'settings')  loadSettings();
+  if (tab === 'dashboard') loadDashboard();
 }
 
 // ── USER MANAGEMENT ──────────────────────────────────────────
@@ -665,9 +676,6 @@ function toast(msg) {
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 3000);
 }
-
-// ── INIT ──
-loadAlerts();
 
 // ══════════════════════════════════════════════════════════
 // DEPLOY AGENT
@@ -1815,20 +1823,25 @@ const INS_CATS = [
 async function loadInsider() {
   const loadEl = document.getElementById('insLoading');
   const txtEl  = document.getElementById('insLoadingText');
+  document.getElementById('insEmpty').style.display = 'none';
   loadEl.classList.remove('hidden');
   txtEl.textContent = 'Loading users from SIEM...';
   try {
     const [ud, ad] = await Promise.all([get('/api/insider/users'), get('/api/insider/list')]);
     _insiderUsers = (ud.data || []).map(u => typeof u === 'object' ? u : { username: u, machine: '' });
     _insiderData  = ad.data || [];
-    // ensure any previously analyzed users appear even if not in the Splunk query window
     _insiderData.forEach(d => {
       if (!_insiderUsers.find(u => u.username === d.username))
         _insiderUsers.push({ username: d.username, machine: d.machine || '' });
     });
     renderInsiderGrid();
-  } catch(e) { showToast('Failed to load users'); }
-  loadEl.classList.add('hidden');
+  } catch(e) {
+    const msg = document.getElementById('insEmptyMsg');
+    if (msg) msg.textContent = 'Error: ' + e.message;
+    document.getElementById('insEmpty').style.display = '';
+  } finally {
+    loadEl.classList.add('hidden');
+  }
 }
 
 function insiderSearch() {
@@ -2062,4 +2075,149 @@ async function insiderDeleteUser(username) {
 async function insiderReanalyze(username) {
   closeInsiderDrawer();
   await insiderAnalyzeAndOpen(username);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  SOC DASHBOARD
+// ══════════════════════════════════════════════════════════════
+let _dashMap       = null;
+let _dashMapLayer  = null;
+
+async function loadDashboard() {
+  _initThreatMap();
+  await Promise.all([loadDashMetrics(), loadDashCve(), loadDashGeo()]);
+}
+
+// ── Map ───────────────────────────────────────────────────────
+function _initThreatMap() {
+  if (_dashMap || typeof L === 'undefined') return;
+  _dashMap = L.map('threatMap', {
+    center: [20, 10], zoom: 2,
+    zoomControl: true, attributionControl: false,
+    minZoom: 1, maxZoom: 8,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+  }).addTo(_dashMap);
+  _dashMapLayer = L.layerGroup().addTo(_dashMap);
+}
+
+function _plotGeoMarkers(data) {
+  if (!_dashMap) return;
+  _dashMapLayer.clearLayers();
+  const max = Math.max(...data.map(d => d.count), 1);
+  data.forEach(d => {
+    const r    = 6 + Math.round((d.count / max) * 18);
+    const heat = d.count / max;
+    const color = heat > 0.6 ? '#f87171' : heat > 0.3 ? '#fb923c' : '#facc15';
+    L.circleMarker([d.lat, d.lon], {
+      radius: r, color, fillColor: color,
+      fillOpacity: 0.75, weight: 1.5, opacity: 0.9,
+    }).bindTooltip(
+      `<b>${d.city ? d.city + ', ' : ''}${d.country}</b><br>${d.ip}<br>${d.count} event${d.count > 1 ? 's' : ''}`,
+      { className: 'dash-map-tooltip' }
+    ).addTo(_dashMapLayer);
+  });
+}
+
+// ── Metrics ───────────────────────────────────────────────────
+async function loadDashMetrics() {
+  try {
+    const r = await get('/api/threat/metrics');
+    if (!r.success) return;
+    const d = r.data;
+    document.getElementById('dmEventsVal').textContent = _fmt(d.events_today);
+    document.getElementById('dmFailsVal').textContent  = _fmt(d.failed_logins);
+    document.getElementById('dmUsersVal').textContent  = _fmt(d.active_users);
+    document.getElementById('dmPrivVal').textContent   = _fmt(d.priv_events);
+
+    const failCard = document.getElementById('dmFailsVal').closest('.dash-metric-card');
+    if (failCard) failCard.classList.toggle('dm-danger', d.failed_logins > 10);
+    const privCard = document.getElementById('dmPrivVal').closest('.dash-metric-card');
+    if (privCard) privCard.classList.toggle('dm-warn', d.priv_events > 20);
+  } catch(e) { /* silent */ }
+}
+function _fmt(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n); }
+
+// ── CVE Feed ──────────────────────────────────────────────────
+async function loadDashCve() {
+  const el = document.getElementById('dashCveList');
+  el.innerHTML = '<div class="dash-loading"><div class="spinner"></div><span>CISA KEV yüklənir...</span></div>';
+  try {
+    const r = await get('/api/threat/cve');
+    if (!r.success) throw new Error(r.error);
+    if (!r.data.length) { el.innerHTML = '<div class="dash-empty">CVE məlumatı tapılmadı.</div>'; return; }
+    el.innerHTML = r.data.map(c => {
+      const sev    = (c.severity || 'HIGH').toUpperCase();
+      const sevCls = sev === 'CRITICAL' ? 'cve-crit' : sev === 'HIGH' ? 'cve-high' : 'cve-med';
+
+      let badges = '';
+      if (c.ransomware) badges += `<span class="cve-score-pill cve-crit">RANSOMWARE</span>`;
+      if (c.apt)        badges += `<span class="cve-score-pill cve-apt">APT</span>`;
+      if (!c.ransomware && !c.apt) badges = `<span class="cve-score-pill ${sevCls}">${sev}</span>`;
+
+      const name    = c.name ? `<div class="cve-name">${escapeHtml(c.name)}</div>` : '';
+      const product = c.vendor ? `<span class="cve-vector">${escapeHtml(c.vendor)} · ${escapeHtml(c.product||'')}</span>` : '';
+      const due     = c.dueDate ? `<span class="cve-date">Due: ${escapeHtml(c.dueDate)}</span>` : '';
+      const action  = c.action ? `<div class="cve-action">⚡ ${escapeHtml(c.action)}</div>` : '';
+      const refLink = c.refs?.[0]
+        ? `<a class="cve-ref" href="${escapeHtml(c.refs[0])}" target="_blank" rel="noopener">NVD ↗</a>` : '';
+
+      return `<div class="cve-card${c.apt ? ' cve-card-apt' : ''}">
+        <div class="cve-card-top">
+          <span class="cve-id">${escapeHtml(c.id)}</span>
+          <div class="cve-badges">${badges}</div>
+        </div>
+        ${name}
+        <div class="cve-desc">${escapeHtml(c.description)}</div>
+        ${action}
+        <div class="cve-card-foot">
+          <span class="cve-date">${escapeHtml(c.published)}</span>
+          ${product}${due}${refLink}
+          <span class="cve-source">CISA KEV</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="dash-empty">CVE yüklənmədi: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ── Geo ───────────────────────────────────────────────────────
+async function loadDashGeo() {
+  try {
+    const r = await get('/api/threat/geomap');
+    if (!r.success || !r.data.length) {
+      document.getElementById('dashGeoTable').innerHTML =
+        '<div class="dash-empty" style="padding:10px 0">Xarici IP aşkar edilmədi.</div>';
+      return;
+    }
+    const simBadge = document.getElementById('geoSimBadge');
+    if (simBadge) simBadge.style.display = r.simulated ? '' : 'none';
+    _plotGeoMarkers(r.data);
+
+    // Country summary table
+    const byCountry = {};
+    r.data.forEach(d => {
+      if (!byCountry[d.country]) byCountry[d.country] = { code: d.countryCode, count: 0 };
+      byCountry[d.country].count += d.count;
+    });
+    const sorted = Object.entries(byCountry).sort((a, b) => b[1].count - a[1].count).slice(0, 8);
+    const maxC   = sorted[0][1].count;
+    document.getElementById('dashGeoTable').innerHTML = `
+      <table class="dash-geo-tbl">
+        <thead><tr><th>Country</th><th>Events</th><th></th></tr></thead>
+        <tbody>${sorted.map(([country, v]) => `
+          <tr>
+            <td><img class="geo-flag" src="https://flagcdn.com/16x12/${v.code.toLowerCase()}.png" onerror="this.style.display='none'" loading="lazy"> ${escapeHtml(country)}</td>
+            <td class="geo-count">${v.count}</td>
+            <td class="geo-bar-cell"><div class="geo-bar" style="width:${Math.round(v.count/maxC*100)}%"></div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('dashGeoTable').innerHTML =
+      `<div class="dash-empty">Geo data error: ${escapeHtml(e.message)}</div>`;
+  }
 }

@@ -1447,20 +1447,48 @@ def _insider_analyze_user(username, days=30):
     except Exception:
         machine = ''
 
-    off = cnt(f'index=wineventlog EventCode=4624 Account_Name="{u}" earliest={since} | eval h=tonumber(strftime(_time,"%H")) | where h<7 OR h>=22 | stats count')
+    # ── Available in standard Windows logging ──────────────────
+    off  = cnt(f'index=wineventlog EventCode=4624 Account_Name="{u}" earliest={since}'
+               f' | eval h=tonumber(strftime(_time,"%H")) | where h<7 OR h>=22 | stats count')
     fail = cnt(f'index=wineventlog EventCode=4625 Account_Name="{u}" earliest={since} | stats count')
 
+    # 4672 (special privileges) + 4648 (explicit credential logon = lateral movement)
+    priv = cnt(f'index=wineventlog (EventCode=4672 OR EventCode=4648) Account_Name="{u}" earliest={since} | stats count')
+
+    # Recon: group membership enumeration (4798 + 4799)
+    recon = cnt(f'index=wineventlog (EventCode=4798 OR EventCode=4799) Account_Name="{u}" earliest={since} | stats count')
+
+    # Credential Manager access (5379 + 5382) — credential harvesting indicator
+    cred = cnt(f'index=wineventlog (EventCode=5379 OR EventCode=5382 OR EventCode=5381) Account_Name="{u}" earliest={since} | stats count')
+
+    # ── Require Process Creation auditing (4688) ───────────────
+    arc   = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since}'
+                f' (Process_Command_Line="*zip*" OR Process_Command_Line="*7z*" OR Process_Command_Line="*rar*" OR Process_Command_Line="*tar*") | stats count')
+    exfil = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since}'
+                f' (New_Process_Name="*git.exe*" OR New_Process_Name="*scp*" OR New_Process_Name="*winscp*"'
+                f' OR Process_Command_Line="*wget*" OR Process_Command_Line="*curl*") | stats count')
+    proc  = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since}'
+                f' (New_Process_Name="*psexec*" OR New_Process_Name="*mimikatz*" OR New_Process_Name="*procdump*"'
+                f' OR Process_Command_Line="* -enc *" OR Process_Command_Line="*IEX(*" OR Process_Command_Line="*bypass*") | stats count')
+
+    # ── Require Object Access auditing (4663) ──────────────────
     try:
-        rows = splunk_run(f'index=wineventlog EventCode=4663 Subject_Account_Name="{u}" earliest={since} | stats dc(Object_Name) as unique_files', max_results=1)['rows']
+        rows = splunk_run(
+            f'index=wineventlog EventCode=4663 Subject_Account_Name="{u}" earliest={since}'
+            f' | stats dc(Object_Name) as unique_files', max_results=1)['rows']
         file_cnt = int(float(rows[0].get('unique_files', 0))) if rows else 0
     except Exception:
         file_cnt = 0
 
-    usb   = cnt(f'index=wineventlog (EventCode=6416 OR EventCode=20001 OR EventCode=6423) Account_Name="{u}" earliest={since} | stats count')
-    arc   = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since} (Process_Command_Line="*zip*" OR Process_Command_Line="*7z*" OR Process_Command_Line="*rar*" OR Process_Command_Line="*tar*") | stats count')
-    priv  = cnt(f'index=wineventlog EventCode=4672 Account_Name="{u}" earliest={since} | stats count')
-    exfil = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since} (New_Process_Name="*git.exe*" OR New_Process_Name="*scp*" OR New_Process_Name="*winscp*" OR Process_Command_Line="*wget*" OR Process_Command_Line="*curl*") | stats count')
-    proc  = cnt(f'index=wineventlog EventCode=4688 Account_Name="{u}" earliest={since} (New_Process_Name="*psexec*" OR New_Process_Name="*mimikatz*" OR New_Process_Name="*procdump*" OR Process_Command_Line="* -enc *" OR Process_Command_Line="*IEX(*" OR Process_Command_Line="*bypass*") | stats count')
+    # ── Require PnP/Device auditing (6416) ─────────────────────
+    usb = cnt(f'index=wineventlog (EventCode=6416 OR EventCode=20001 OR EventCode=6423)'
+              f' Account_Name="{u}" earliest={since} | stats count')
+
+    # Combine recon/cred into abnormal_proc and exfil if process audit unavailable
+    if proc == 0:
+        proc = recon   # group enumeration = reconnaissance (suspicious if high)
+    if exfil == 0:
+        exfil = cred   # credential manager access = potential credential theft
 
     def sev(val, lo, hi):
         if val == 0:   return 'NONE'
@@ -1475,12 +1503,14 @@ def _insider_analyze_user(username, days=30):
         'usb_activity':  {'count': usb,      'label': 'USB / removable media events', 'sev': sev(usb,      1,   5)},
         'archive':       {'count': arc,      'label': 'Archive / compression cmds',   'sev': sev(arc,      2,  10)},
         'privilege_use': {'count': priv,     'label': 'Privileged logon events',      'sev': sev(priv,     10, 50)},
-        'exfil_tools':   {'count': exfil,    'label': 'Exfil / data transfer tools',  'sev': sev(exfil,    1,   5)},
-        'abnormal_proc': {'count': proc,     'label': 'Suspicious process execution', 'sev': sev(proc,     1,   3)},
+        # Thresholds raised: fallback events (5379/5382/4798/4799) fire
+        # frequently in normal Windows environments — low counts are noise.
+        'exfil_tools':   {'count': exfil,    'label': 'Exfil / data transfer tools',  'sev': sev(exfil,   30, 100)},
+        'abnormal_proc': {'count': proc,     'label': 'Suspicious process execution', 'sev': sev(proc,    20,  80)},
     }
 
     SEV_PTS = {'NONE': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3}
-    W = {'abnormal_proc': 3.0, 'exfil_tools': 2.5, 'usb_activity': 2.0,
+    W = {'abnormal_proc': 2.0, 'exfil_tools': 1.5, 'usb_activity': 2.0,
          'archive': 1.5, 'file_access': 1.5, 'off_hours': 1.2,
          'failed_logins': 1.0, 'privilege_use': 0.8}
     raw   = sum(SEV_PTS[findings[k]['sev']] * W[k] for k in W)
@@ -1580,6 +1610,173 @@ def insider_delete_route():
     store.pop(username, None)
     _insider_save(store)
     return jsonify({'success': True})
+
+
+# ══════════════════════════════════════════════════════════════
+#  SOC DASHBOARD — CVE / METRICS / GEOMAP
+# ══════════════════════════════════════════════════════════════
+
+APT_KEYWORDS = {
+    "apt", "apt28", "apt29", "apt32", "apt33", "apt38", "apt41",
+    "lazarus", "cozy bear", "fancy bear", "volt typhoon", "salt typhoon",
+    "flax typhoon", "silk typhoon", "sandworm", "turla", "darkhotel",
+    "kimsuky", "winnti", "hafnium", "nobelium", "scattered spider",
+    "lapsus", "blackcat", "lockbit", "cl0p", "cl0p",
+    "nation-state", "state-sponsored", "espionage", "cyber espionage",
+    "zero-day", "0-day", "targeted attack", "threat actor", "threat group",
+    "advanced persistent", "supply chain attack", "living off the land",
+}
+
+@app.route("/api/threat/cve", methods=["GET"])
+def threat_cve():
+    from datetime import date, timedelta
+    try:
+        resp = requests.get(
+            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+            headers={"User-Agent": "Pentagon-SOC/1.0"},
+            timeout=12,
+        )
+        resp.raise_for_status()
+        vulns = resp.json().get("vulnerabilities", [])
+        vulns.sort(key=lambda v: v.get("dateAdded", ""), reverse=True)
+
+        today      = date.today()
+        this_month = today.strftime("%Y-%m")
+        cutoff_60  = (today - timedelta(days=60)).isoformat()
+
+        # Prefer entries from this month; fall back to last 60 days if fewer than 5
+        month_pool = [v for v in vulns if v.get("dateAdded", "").startswith(this_month)]
+        pool = month_pool if len(month_pool) >= 5 else [v for v in vulns if v.get("dateAdded", "") >= cutoff_60]
+
+        out = []
+        for v in pool[:10]:
+            text = " ".join([
+                v.get("shortDescription", ""),
+                v.get("notes", ""),
+                v.get("vulnerabilityName", ""),
+            ]).lower()
+            is_apt     = any(kw in text for kw in APT_KEYWORDS)
+            ransomware = v.get("knownRansomwareCampaignUse", "Unknown") == "Known"
+            out.append({
+                "id":          v.get("cveID", ""),
+                "name":        v.get("vulnerabilityName", ""),
+                "published":   v.get("dateAdded", ""),
+                "severity":    "CRITICAL" if (ransomware or is_apt) else "HIGH",
+                "vendor":      v.get("vendorProject", ""),
+                "product":     v.get("product", ""),
+                "description": v.get("shortDescription", "")[:450],
+                "action":      v.get("requiredAction", ""),
+                "dueDate":     v.get("dueDate", ""),
+                "ransomware":  ransomware,
+                "apt":         is_apt,
+                "refs":        [f"https://nvd.nist.gov/vuln/detail/{v.get('cveID','')}"],
+                "source":      "CISA KEV",
+            })
+        return jsonify({"success": True, "data": out, "month": this_month})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/threat/metrics", methods=["GET"])
+def threat_metrics():
+    def _q(spl):
+        try:
+            rows = splunk_run(spl, max_results=1)["rows"]
+            return rows[0] if rows else {}
+        except Exception:
+            return {}
+
+    events_today = int((_q("index=wineventlog earliest=@d | stats count") or {}).get("count", 0))
+    fail_today   = int((_q("index=wineventlog EventCode=4625 earliest=@d | stats count") or {}).get("count", 0))
+    users_today  = int((_q("index=wineventlog EventCode=4624 earliest=@d | stats dc(Account_Name) as u") or {}).get("u", 0))
+    priv_today   = int((_q("index=wineventlog EventCode=4672 earliest=@d | stats count") or {}).get("count", 0))
+
+    try:
+        ext_rows = splunk_run(
+            'index=wineventlog (EventCode=4624 OR EventCode=4625) earliest=@d'
+            ' | rex field=Source_Network_Address "(?P<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"'
+            ' | where isnotnull(ip)'
+            '   AND NOT match(ip,"^10\\.")   AND NOT match(ip,"^192\\.168\\.")'
+            '   AND NOT match(ip,"^172\\.(1[6-9]|2[0-9]|3[0-1])\\.")  AND NOT match(ip,"^127\\.")'
+            ' | stats count by ip | sort -count | head 5',
+            max_results=5)["rows"]
+        ext_ips = [{"ip": r.get("ip",""), "count": int(r.get("count",0))} for r in ext_rows]
+    except Exception:
+        ext_ips = []
+
+    return jsonify({"success": True, "data": {
+        "events_today":  events_today,
+        "failed_logins": fail_today,
+        "active_users":  users_today,
+        "priv_events":   priv_today,
+        "ext_ips":       ext_ips,
+    }})
+
+
+_GEO_SIMULATED = [
+    {"ip": "45.142.212.100", "country": "Russia",         "countryCode": "RU", "city": "Moscow",       "lat": 55.75,  "lon": 37.62,  "count": 94},
+    {"ip": "103.27.186.55",  "country": "China",          "countryCode": "CN", "city": "Beijing",      "lat": 39.91,  "lon": 116.39, "count": 87},
+    {"ip": "5.188.206.14",   "country": "Russia",         "countryCode": "RU", "city": "St Petersburg","lat": 59.93,  "lon": 30.32,  "count": 76},
+    {"ip": "46.161.27.210",  "country": "Iran",           "countryCode": "IR", "city": "Tehran",       "lat": 35.69,  "lon": 51.42,  "count": 68},
+    {"ip": "175.45.176.3",   "country": "North Korea",    "countryCode": "KP", "city": "Pyongyang",    "lat": 39.02,  "lon": 125.75, "count": 55},
+    {"ip": "121.41.97.221",  "country": "China",          "countryCode": "CN", "city": "Shanghai",     "lat": 31.23,  "lon": 121.47, "count": 49},
+    {"ip": "193.32.162.90",  "country": "Netherlands",    "countryCode": "NL", "city": "Amsterdam",    "lat": 52.37,  "lon": 4.89,   "count": 41},
+    {"ip": "91.108.56.200",  "country": "Germany",        "countryCode": "DE", "city": "Frankfurt",    "lat": 50.11,  "lon": 8.68,   "count": 35},
+    {"ip": "185.220.101.45", "country": "Romania",        "countryCode": "RO", "city": "Bucharest",    "lat": 44.43,  "lon": 26.10,  "count": 29},
+    {"ip": "203.160.68.12",  "country": "Vietnam",        "countryCode": "VN", "city": "Hanoi",        "lat": 21.03,  "lon": 105.85, "count": 24},
+    {"ip": "197.234.240.5",  "country": "South Africa",   "countryCode": "ZA", "city": "Johannesburg", "lat": -26.20, "lon": 28.04,  "count": 20},
+    {"ip": "177.75.40.109",  "country": "Brazil",         "countryCode": "BR", "city": "São Paulo",    "lat": -23.55, "lon": -46.63, "count": 17},
+    {"ip": "41.223.210.50",  "country": "Nigeria",        "countryCode": "NG", "city": "Lagos",        "lat": 6.45,   "lon": 3.39,   "count": 14},
+    {"ip": "185.176.27.11",  "country": "Ukraine",        "countryCode": "UA", "city": "Kyiv",         "lat": 50.45,  "lon": 30.52,  "count": 11},
+    {"ip": "162.142.125.20", "country": "United States",  "countryCode": "US", "city": "Chicago",      "lat": 41.88,  "lon": -87.63, "count": 10},
+]
+
+@app.route("/api/threat/geomap", methods=["GET"])
+def threat_geomap():
+    try:
+        rows = splunk_run(
+            'index=wineventlog (EventCode=4624 OR EventCode=4625) earliest=-7d'
+            ' | rex field=Source_Network_Address "(?P<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"'
+            ' | where isnotnull(ip)'
+            '   AND NOT match(ip,"^10\\.")   AND NOT match(ip,"^192\\.168\\.")'
+            '   AND NOT match(ip,"^172\\.(1[6-9]|2[0-9]|3[0-1])\\.")  AND NOT match(ip,"^127\\.")'
+            ' | stats count by ip | sort -count | head 50',
+            max_results=50)["rows"]
+
+        geo = []
+        if rows:
+            ips    = [r["ip"] for r in rows]
+            counts = {r["ip"]: int(r.get("count", 1)) for r in rows}
+            try:
+                gr = requests.post(
+                    "http://ip-api.com/batch",
+                    json=[{"query": ip, "fields": "status,country,countryCode,city,lat,lon,query"}
+                          for ip in ips],
+                    timeout=10,
+                )
+                for item in gr.json():
+                    if item.get("status") == "success":
+                        geo.append({
+                            "ip":          item["query"],
+                            "country":     item.get("country", ""),
+                            "countryCode": item.get("countryCode", ""),
+                            "city":        item.get("city", ""),
+                            "lat":         item.get("lat", 0),
+                            "lon":         item.get("lon", 0),
+                            "count":       counts.get(item["query"], 1),
+                            "simulated":   False,
+                        })
+            except Exception:
+                pass
+
+        if not geo:
+            geo = [dict(e, simulated=True) for e in _GEO_SIMULATED]
+
+        return jsonify({"success": True, "data": geo, "simulated": not rows})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 
 
 if __name__ == "__main__":

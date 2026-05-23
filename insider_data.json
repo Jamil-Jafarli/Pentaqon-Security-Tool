@@ -2,8 +2,8 @@
   "Vugar": {
     "username": "Vugar",
     "machine": "DESKTOP-9G74UU8",
-    "risk": "LOW",
-    "score": 8,
+    "risk": "MEDIUM",
+    "score": 36,
     "findings": {
       "off_hours": {
         "count": 2,
@@ -31,32 +31,35 @@
         "sev": "NONE"
       },
       "privilege_use": {
-        "count": 0,
+        "count": 5,
         "label": "Privileged logon events",
-        "sev": "NONE"
+        "sev": "LOW"
       },
       "exfil_tools": {
-        "count": 0,
+        "count": 180,
         "label": "Exfil / data transfer tools",
-        "sev": "NONE"
+        "sev": "HIGH"
       },
       "abnormal_proc": {
-        "count": 0,
+        "count": 25,
         "label": "Suspicious process execution",
-        "sev": "NONE"
+        "sev": "MEDIUM"
       }
     },
-    "analyzed_at": "2026-05-23T07:44:05Z",
+    "analyzed_at": "2026-05-23T09:48:52Z",
     "days": 30,
     "ai": {
-      "summary": "{\"summary\":\"In the past 30 days, the user Vugar had two off\u2011hours login events and eleven failed login attempts. While the overall risk remains low (score 8/100), the pattern of failed attempts warrants attention.\",\"key_concerns\":[\"Multiple failed login attempts indicating possible password guessing\",\"Off\u2011hours logins outside normal work schedule\",\"Potential account compromise risk despite low overall score\"],\"likely_cause\":\"Likely a combination of legitimate off\u2011hours access and automated password\u2011spraying attempts.\",\"recommended_actions\":[\"Review Vugar\u2019s recent activity for anomalous behavior\",\"Enforce multi\u2011factor authentication for the account\",\"Lock the account temporarily and require"
+      "summary": "{\"summary\":\"Vugar exhibited multiple anomalous behaviors in the past 30 days, including a high volume of data exfiltration tool usage and numerous failed login attempts. While some events are low severity, the combination suggests a potential insider threat.\",\"key_concerns\":[\"High frequency of exfiltration tool events (180)\",\"Multiple failed login attempts (11) indicating possible credential misuse\",\"Suspicious process execution (25) that may indicate malicious activity\"],\"likely_cause\":\"Malicious insider attempting to gather and exfiltrate sensitive data using unauthorized tools.\",\"recommended_actions\":[\"Initiate user activity monitoring and session recording for Vugar\",\"Disable or restrict Vugar's privileged accounts pending investigation\",\"Conduct"
+    },
+    "verdicts": {
+      "exfil_tools": "fp"
     }
   },
   "localadm": {
     "username": "localadm",
     "machine": "DESKTOP-9G74UU8",
-    "risk": "LOW",
-    "score": 8,
+    "risk": "MEDIUM",
+    "score": 39,
     "findings": {
       "off_hours": {
         "count": 4,
@@ -64,9 +67,9 @@
         "sev": "MEDIUM"
       },
       "failed_logins": {
-        "count": 0,
+        "count": 3,
         "label": "Failed login attempts",
-        "sev": "NONE"
+        "sev": "LOW"
       },
       "file_access": {
         "count": 0,
@@ -84,32 +87,44 @@
         "sev": "NONE"
       },
       "privilege_use": {
-        "count": 4,
+        "count": 26,
         "label": "Privileged logon events",
-        "sev": "LOW"
+        "sev": "MEDIUM"
       },
       "exfil_tools": {
-        "count": 0,
+        "count": 119,
         "label": "Exfil / data transfer tools",
-        "sev": "NONE"
+        "sev": "HIGH"
       },
       "abnormal_proc": {
-        "count": 0,
+        "count": 53,
         "label": "Suspicious process execution",
-        "sev": "NONE"
+        "sev": "MEDIUM"
       }
     },
-    "analyzed_at": "2026-05-23T07:02:30Z",
-    "days": 7,
+    "analyzed_at": "2026-05-23T09:48:59Z",
+    "days": 30,
     "ai": {
-      "error": "Connection error."
+      "summary": "The user localadm exhibited multiple high\u2011risk activities over the past 30 days, including 119 exfiltration tool events and 53 suspicious process executions. Combined with frequent privileged logons, this indicates a potential insider threat requiring immediate investigation.",
+      "key_concerns": [
+        "High volume of data exfiltration tool usage",
+        "Frequent privileged logon events",
+        "Suspicious process executions"
+      ],
+      "likely_cause": "Malicious insider activity leveraging legitimate credentials to gather and transfer data.",
+      "recommended_actions": [
+        "Isolate the account and enforce MFA",
+        "Conduct forensic analysis of recent sessions and transferred data",
+        "Review and revoke unnecessary privileged permissions"
+      ],
+      "confidence": "high"
     }
   },
-  "Maga": {
-    "username": "Maga",
-    "machine": "",
-    "risk": "CLEAN",
-    "score": 0,
+  "Huseyn": {
+    "username": "Huseyn",
+    "machine": "DESKTOP-9G74UU8",
+    "risk": "LOW",
+    "score": 17,
     "findings": {
       "off_hours": {
         "count": 0,
@@ -137,33 +152,25 @@
         "sev": "NONE"
       },
       "privilege_use": {
-        "count": 0,
+        "count": 1,
         "label": "Privileged logon events",
-        "sev": "NONE"
+        "sev": "LOW"
       },
       "exfil_tools": {
-        "count": 0,
+        "count": 62,
         "label": "Exfil / data transfer tools",
-        "sev": "NONE"
+        "sev": "MEDIUM"
       },
       "abnormal_proc": {
-        "count": 0,
+        "count": 5,
         "label": "Suspicious process execution",
-        "sev": "NONE"
+        "sev": "LOW"
       }
     },
-    "analyzed_at": "2026-05-23T07:29:49Z",
+    "analyzed_at": "2026-05-23T09:48:26Z",
     "days": 30,
     "ai": {
-      "summary": "No notable insider threat activity was observed in the past 30 days. The environment remains clean and stable.",
-      "key_concerns": [],
-      "likely_cause": "Benign \u2013 no suspicious behavior detected.",
-      "recommended_actions": [
-        "Maintain current monitoring thresholds",
-        "Review access logs for any anomalies on a weekly basis",
-        "Reinforce insider threat awareness training for staff"
-      ],
-      "confidence": "high"
+      "summary": "{\"summary\":\"Huseyn exhibits a low overall risk score (17/100) but shows a high volume of exfiltration-related events (62) in the past 30 days. While privileged logons and suspicious processes are limited, the data transfer activity warrants attention.\",\"key_concerns\":[\"High number of exfiltration/data transfer"
     }
   }
 }

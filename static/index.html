@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pentagon SOC</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
 <body>
 
@@ -35,17 +36,7 @@
   <!-- LEFT SIDEBAR -->
   <aside class="sidebar">
     <div class="logo">
-      <img src="/static/logo.png" alt="Pentagon" class="logo-img" id="logoImg" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
-      <div class="logo-fallback" id="logoFallback">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <polygon points="16,2 30,11 25,28 7,28 2,11" fill="none" stroke="#3b82f6" stroke-width="2"/>
-          <polygon points="16,7 26,13 22,24 10,24 6,13" fill="#3b82f630" stroke="#3b82f6" stroke-width="1"/>
-        </svg>
-      </div>
-      <div class="logo-text">
-        <span class="logo-name">PENTAGON</span>
-        <span class="logo-sub">SOC Platform</span>
-      </div>
+      <img class="logo-pentagon" src="/static/pentagon.svg" alt="Pentagon SOC" />
     </div>
 
     <div class="sidebar-nav-scroll">
@@ -117,6 +108,18 @@
           <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
           <span class="nav-label">User Behavior</span>
           <span class="nav-badge" id="insiderBadge" style="display:none">0</span>
+        </button>
+      </nav>
+
+      <button class="sidebar-sec-hdr" onclick="toggleSec('dashboard')" id="hdr-dashboard">
+        <span class="sec-num">5</span>
+        <span class="sec-title">DASHBOARD</span>
+        <svg class="sec-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+      <nav class="nav sec-nav" id="sec-dashboard">
+        <button class="nav-item" data-tab="dashboard">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+          <span class="nav-label">SOC Dashboard</span>
         </button>
       </nav>
 
@@ -705,6 +708,9 @@
             <option value="60">60 days</option>
             <option value="90">90 days</option>
           </select>
+          <button class="btn-ghost ins-reload-btn" onclick="loadInsider()" title="Reload users from SIEM">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+          </button>
         </div>
 
         <!-- Loading -->
@@ -726,13 +732,81 @@
         <div id="insGrid" class="ins-grid"></div>
 
         <!-- Empty state -->
-        <div id="insEmpty" class="ins-empty">
+        <div id="insEmpty" class="ins-empty" style="display:none">
           <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><circle cx="24" cy="16" r="8" stroke="#334155" stroke-width="2"/><path d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="#334155" stroke-width="2" stroke-linecap="round"/></svg>
-          <p>No analyses yet.</p>
-          <p class="empty-sub">No users found in SIEM logs. Check your connection or adjust the search filter.</p>
+          <p>No users found in SIEM.</p>
+          <p class="empty-sub" id="insEmptyMsg">Check Splunk connection or enable Windows Security auditing.</p>
+          <button class="btn-ghost" style="margin-top:8px" onclick="loadInsider()">Retry</button>
         </div>
 
       </section><!-- end tab-insider -->
+
+      <!-- ══════════════════════════════════════════════════
+           SOC DASHBOARD
+      ═══════════════════════════════════════════════════ -->
+      <section class="tab" id="tab-dashboard">
+
+        <!-- Metric cards -->
+        <div class="dash-metrics" id="dashMetrics">
+          <div class="dash-metric-card">
+            <div class="dm-icon">📊</div>
+            <div class="dm-value" id="dmEventsVal">—</div>
+            <div class="dm-label">Events Today</div>
+          </div>
+          <div class="dash-metric-card dm-danger">
+            <div class="dm-icon">🔐</div>
+            <div class="dm-value" id="dmFailsVal">—</div>
+            <div class="dm-label">Failed Logins</div>
+          </div>
+          <div class="dash-metric-card">
+            <div class="dm-icon">👤</div>
+            <div class="dm-value" id="dmUsersVal">—</div>
+            <div class="dm-label">Active Users</div>
+          </div>
+          <div class="dash-metric-card dm-warn">
+            <div class="dm-icon">⚡</div>
+            <div class="dm-value" id="dmPrivVal">—</div>
+            <div class="dm-label">Privilege Events</div>
+          </div>
+        </div>
+
+        <!-- Main body: CVE + Map -->
+        <div class="dash-body">
+
+          <!-- CVE Feed -->
+          <div class="dash-panel dash-panel-cve">
+            <div class="dash-panel-hdr">
+              <span class="dash-panel-title">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                CVE Intelligence Feed
+              </span>
+              <button class="btn-ghost dash-refresh-btn" onclick="loadDashCve()" title="Refresh CVEs">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div id="dashCveList" class="dash-cve-list">
+              <div class="dash-loading">
+                <div class="spinner"></div><span>Loading CVE data...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Geo Map -->
+          <div class="dash-panel dash-panel-map">
+            <div class="dash-panel-hdr">
+              <span class="dash-panel-title">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clip-rule="evenodd"/></svg>
+                Geographic Threat Map
+              </span>
+              <span class="dash-time-badge">Last 7 days</span>
+              <span id="geoSimBadge" class="dash-sim-badge" style="display:none">Simulated</span>
+            </div>
+            <div id="threatMap" class="dash-map-canvas"></div>
+            <div id="dashGeoTable" class="dash-geo-table"></div>
+          </div>
+
+        </div>
+      </section><!-- end tab-dashboard -->
 
       <!-- ══════════════════════════════════════════════════
            SETTINGS
@@ -902,6 +976,7 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/app.js"></script>
 <script>
   setInterval(() => {

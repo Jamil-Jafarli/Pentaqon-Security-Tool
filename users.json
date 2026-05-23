@@ -2,5 +2,9 @@
   "admin": {
     "hash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     "role": "admin"
+  },
+  "vugar": {
+    "hash": "a81a3e461d9c9c428ccc8b6bb3962c692b48af8cb8ea21cdaa626cf468770f2e",
+    "role": "analyst"
   }
 }
