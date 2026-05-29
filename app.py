@@ -40,7 +40,7 @@ MODEL = "openai/gpt-oss-120b"
 
 SPLUNK_HOST = os.environ.get("SPLUNK_HOST", "https://localhost:8089")
 SPLUNK_USER = os.environ.get("SPLUNK_USER", "admin")
-SPLUNK_PASS = os.environ.get("SPLUNK_PASS", "Salam123Salam123!")
+SPLUNK_PASS = os.environ.get("SPLUNK_PASS", "admin")
 
 SPLUNK_INDEXES = ["main", "wineventlog", "_audit", "_internal"]
 
